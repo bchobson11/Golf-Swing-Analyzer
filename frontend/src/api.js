@@ -11,11 +11,8 @@ export function uploadVideo(file, onProgress) {
       if (e.lengthComputable && onProgress) onProgress(e.loaded / e.total);
     };
     xhr.onload = () => {
-      if (xhr.status >= 200 && xhr.status < 300) {
-        resolve(JSON.parse(xhr.responseText));
-      } else {
-        reject(new Error(xhr.responseText || `Upload failed (${xhr.status})`));
-      }
+      if (xhr.status >= 200 && xhr.status < 300) resolve(JSON.parse(xhr.responseText));
+      else reject(new Error(xhr.responseText || `Upload failed (${xhr.status})`));
     };
     xhr.onerror = () => reject(new Error("Upload network error"));
     xhr.send(form);
@@ -34,13 +31,32 @@ export async function getAnalysis(videoId) {
   return res.json();
 }
 
-export async function exportClips(videoId, segments) {
-  const res = await fetch(`/api/export/${videoId}`, {
+// Save swings to the library. meta = {name, recorded_date, tags}.
+export async function saveSwings(videoId, meta, segments) {
+  const res = await fetch(`/api/save/${videoId}`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ segments }),
+    body: JSON.stringify({ ...meta, segments }),
   });
   if (!res.ok) throw new Error(await res.text());
+  return res.json();
+}
+
+export async function getLibrary(tag) {
+  const res = await fetch(`/api/library${tag ? `?tag=${encodeURIComponent(tag)}` : ""}`);
+  if (!res.ok) throw new Error("Failed to load library");
+  return res.json();
+}
+
+export async function deleteSession(id) {
+  const res = await fetch(`/api/sessions/${id}`, { method: "DELETE" });
+  if (!res.ok) throw new Error("Failed to delete session");
+  return res.json();
+}
+
+export async function deleteSwing(id) {
+  const res = await fetch(`/api/swings/${id}`, { method: "DELETE" });
+  if (!res.ok) throw new Error("Failed to delete swing");
   return res.json();
 }
 

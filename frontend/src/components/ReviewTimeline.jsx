@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { videoUrl, exportClips } from "../api.js";
+import { videoUrl, saveSwings } from "../api.js";
 
 const fmt = (s) => {
   if (s == null || isNaN(s)) return "0:00.0";
@@ -8,13 +8,13 @@ const fmt = (s) => {
   return `${m}:${sec}`;
 };
 
-export default function ReviewTimeline({ video, segments, setSegments, onExported }) {
+export default function ReviewTimeline({ video, segments, setSegments, meta, setMeta, onSaved }) {
   const videoRef = useRef(null);
   const trackRef = useRef(null);
   const [current, setCurrent] = useState(0);
   const [selected, setSelected] = useState(0);
   const [playRange, setPlayRange] = useState(null); // {end} - stop playback at end
-  const [exporting, setExporting] = useState(false);
+  const [saving, setSaving] = useState(false);
   const [error, setError] = useState(null);
 
   const duration = video.duration || 0;
@@ -72,22 +72,40 @@ export default function ReviewTimeline({ video, segments, setSegments, onExporte
     seek(ratio * duration);
   };
 
-  async function doExport() {
-    setExporting(true);
+  const patchMeta = (p) => setMeta((m) => ({ ...m, ...p }));
+
+  async function doSave() {
+    setSaving(true);
     setError(null);
     try {
       const sorted = [...segments].sort((a, b) => a.start - b.start);
-      const { clips } = await exportClips(video.id, sorted);
-      onExported(clips);
+      await saveSwings(video.id, meta, sorted);
+      onSaved();
     } catch (e) {
       setError(e.message || String(e));
-    } finally {
-      setExporting(false);
+      setSaving(false);
     }
   }
 
   return (
     <div className="review">
+      <div className="form session-form">
+        <label>
+          Name
+          <input value={meta.name} onChange={(e) => patchMeta({ name: e.target.value })} />
+        </label>
+        <label>
+          Date
+          <input type="date" value={meta.recorded_date || ""}
+                 onChange={(e) => patchMeta({ recorded_date: e.target.value })} />
+        </label>
+        <label>
+          Tags
+          <input value={meta.tags.join(", ")}
+                 onChange={(e) => patchMeta({ tags: e.target.value.split(",").map((t) => t.trim()).filter(Boolean) })} />
+        </label>
+      </div>
+
       <video
         ref={videoRef}
         src={videoUrl(video.id)}
@@ -131,10 +149,10 @@ export default function ReviewTimeline({ video, segments, setSegments, onExporte
         <button onClick={addSeg}>+ Add swing at playhead</button>
         <button
           className="primary"
-          disabled={exporting || segments.length === 0}
-          onClick={doExport}
+          disabled={saving || segments.length === 0}
+          onClick={doSave}
         >
-          {exporting ? "Exporting…" : `Export ${segments.length} clips`}
+          {saving ? "Saving…" : `Save ${segments.length} swings to library`}
         </button>
       </div>
       {error && <p className="error">⚠ {error}</p>}

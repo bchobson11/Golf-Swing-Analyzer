@@ -3,6 +3,9 @@ backend/data/uploads/*
 backend/data/clips/*
 !backend/data/uploads/.gitkeep
 !backend/data/clips/.gitkeep
+backend/data/*.db
+backend/data/*.db-journal
+backend/data/*.db-wal
 frontend/node_modules/
 frontend/dist/
 __pycache__/

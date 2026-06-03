@@ -40,22 +40,17 @@ class AnalysisJob:
     error: str | None = None
 
 
-@dataclass
-class Clip:
-    id: str
-    video_id: str
-    path: Path
-    index: int
-    start: float
-    end: float
-
-
 class Store:
+    """Transient store for in-flight uploads and analysis jobs.
+
+    Saved swings live in the SQLite library (see db.py); this only holds the
+    source video + analysis state between upload and save.
+    """
+
     def __init__(self) -> None:
         self._lock = threading.Lock()
         self.videos: dict[str, Video] = {}
         self.jobs: dict[str, AnalysisJob] = {}
-        self.clips: dict[str, Clip] = {}
 
     def add_video(self, video: Video) -> None:
         with self._lock:
@@ -64,19 +59,17 @@ class Store:
     def get_video(self, video_id: str) -> Video | None:
         return self.videos.get(video_id)
 
+    def remove_video(self, video_id: str) -> None:
+        with self._lock:
+            self.videos.pop(video_id, None)
+            self.jobs.pop(video_id, None)
+
     def set_job(self, job: AnalysisJob) -> None:
         with self._lock:
             self.jobs[job.video_id] = job
 
     def get_job(self, video_id: str) -> AnalysisJob | None:
         return self.jobs.get(video_id)
-
-    def add_clip(self, clip: Clip) -> None:
-        with self._lock:
-            self.clips[clip.id] = clip
-
-    def get_clip(self, clip_id: str) -> Clip | None:
-        return self.clips.get(clip_id)
 
 
 store = Store()

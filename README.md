@@ -1,14 +1,21 @@
-# ⛳ Golf Swing Splitter
+# ⛳ Swing Library
 
-Upload a long practice video, automatically split it into one short clip per
-swing, review/adjust the cut points, then watch and download each swing.
+Upload a long practice video (with a name, date, and tags), automatically split
+it into one clip per swing, review/adjust the cut points, then **save the swings
+to a personal library** you can come back to anytime. Saved swings are browsable
+as a flat gallery or grouped by session, and filterable by tag. Downloading a
+clip is an optional export.
 
-How it works: the backend tracks the golfer's body with MediaPipe Pose and
-keys on the real swing signature — a sharp spike in **hand speed while the hips
-stay planted**. Walking toward/across the camera moves more pixels than a swing
-does, so plain pixel-motion detection mistakes it for a swing; gating on planted
-hips rejects that. Each detected swing becomes a padded clip window you review
-and tweak before exporting.
+How detection works: the backend tracks the golfer's body with MediaPipe Pose
+and keys on the real swing signature — a sharp spike in **hand speed while the
+hips stay planted**. Walking toward/across the camera moves more pixels than a
+swing does, so plain pixel-motion detection mistakes it for a swing; gating on
+planted hips rejects that. Each detected swing becomes a padded clip window you
+review and tweak before saving.
+
+Saved swings persist in a SQLite database (`backend/data/golf.db`); each is a
+small mp4 in `backend/data/clips/`. Once a video's swings are saved, the large
+source upload is deleted — the library keeps only the clips + metadata.
 
 ## Stack
 - **Backend** — FastAPI + MediaPipe Pose (swing detection) + OpenCV + bundled ffmpeg (cutting)

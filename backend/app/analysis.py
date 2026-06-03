@@ -31,7 +31,7 @@ CONFIG = {
     "proc_width": 360,        # frames downscaled to this width for pose
     "smooth_seconds": 0.25,   # moving-average window for the speed signals
     "wrist_speed_mult": 4.0,  # swing = wrist speed > mult * median wrist speed
-    "min_wrist_floor": 12.0,  # absolute floor for the wrist-speed threshold
+    "min_wrist_floor": 7.0,   # absolute floor for the wrist-speed threshold
     "max_hip_ratio": 0.30,    # reject burst if hip_translation/wrist_speed > this
     "merge_gap": 1.0,         # merge swing bursts separated by < this (s)
     "pre_pad": 2.5,           # clip starts this many seconds before impact
