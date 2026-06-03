@@ -1,81 +1,60 @@
-import { useEffect, useState } from "react";
-import { getLibrary, deleteSession, deleteSwing, updateSwingClub } from "../api.js";
+import { deleteSession, deleteSwing, updateSwingClub } from "../api.js";
 import { frameStepKeyDown } from "../frameStep.js";
 import { GENERIC_ORDER, clubLabel } from "../clubs.js";
 import ClubPicker from "./ClubPicker.jsx";
 
-export default function Library() {
-  const [data, setData] = useState({ sessions: [], tags: [] });
-  const [view, setView] = useState("flat"); // "flat" | "sessions" | "club"
-  const [tag, setTag] = useState(null);
-  const [loading, setLoading] = useState(true);
-
-  const load = async (t) => {
-    setLoading(true);
-    try {
-      setData(await getLibrary(t));
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  useEffect(() => { load(tag); }, [tag]);
-
-  const onDeleteSwing = async (id) => {
-    await deleteSwing(id);
-    load(tag);
-  };
+// Presentational: filtering/grouping driven by props from App + Sidebar.
+export default function Library({ data, view, tagFilter, clubFilter, refresh }) {
+  const onDeleteSwing = async (id) => { await deleteSwing(id); refresh(); };
   const onDeleteSession = async (id) => {
     if (!confirm("Delete this whole session and all its swings?")) return;
-    await deleteSession(id);
-    load(tag);
+    await deleteSession(id); refresh();
   };
-  const onSetClub = async (id, club) => {
-    await updateSwingClub(id, club);
-    load(tag);
-  };
+  const onSetClub = async (id, club) => { await updateSwingClub(id, club); refresh(); };
 
-  const sessions = data.sessions;
-  const flatSwings = sessions.flatMap((s) =>
-    s.swings.map((sw) => ({ ...sw, session: s }))
-  );
+  // Tag filter applies to sessions; club filter applies to swings.
+  const sessions = (data.sessions || [])
+    .filter((s) => !tagFilter || s.tags.includes(tagFilter))
+    .map((s) => ({
+      ...s,
+      swings: s.swings.filter((sw) => !clubFilter || (sw.club_generic || "Unassigned") === clubFilter),
+    }))
+    .filter((s) => s.swings.length > 0);
 
-  // Group flat swings by generic category for the "By club" view.
-  const byClub = GENERIC_ORDER.map((generic) => ({
-    generic,
-    swings: flatSwings.filter(
-      (sw) => (sw.club_generic || "Unassigned") === generic
-    ),
-  })).filter((g) => g.swings.length > 0);
+  const flatSwings = sessions.flatMap((s) => s.swings.map((sw) => ({ ...sw, session: s })));
 
-  const cardProps = (sw, fps) => ({
-    swing: sw, fps, onDelete: onDeleteSwing, onSetClub,
-  });
+  const filterNote = [
+    tagFilter && `#${tagFilter}`,
+    clubFilter && clubFilter,
+  ].filter(Boolean).join(" · ");
+
+  const heading = { flat: "All swings", sessions: "By session", club: "By club" }[view];
+
+  const cardProps = (sw, fps) => ({ swing: sw, fps, onDelete: onDeleteSwing, onSetClub });
+
+  const byClub = GENERIC_ORDER
+    .map((generic) => ({ generic, swings: flatSwings.filter((sw) => (sw.club_generic || "Unassigned") === generic) }))
+    .filter((g) => g.swings.length > 0);
 
   return (
     <div className="library">
-      <div className="toolbar">
-        <div className="seg-control">
-          <button className={view === "flat" ? "active" : ""} onClick={() => setView("flat")}>All swings</button>
-          <button className={view === "sessions" ? "active" : ""} onClick={() => setView("sessions")}>By session</button>
-          <button className={view === "club" ? "active" : ""} onClick={() => setView("club")}>By club</button>
-        </div>
-        {data.tags.length > 0 && (
-          <div className="tag-filter">
-            <button className={!tag ? "active" : ""} onClick={() => setTag(null)}>All</button>
-            {data.tags.map((t) => (
-              <button key={t} className={tag === t ? "active" : ""} onClick={() => setTag(t)}>#{t}</button>
-            ))}
-          </div>
-        )}
+      <div className="content-head">
+        <h1>{heading}</h1>
+        <span className="sub">
+          {flatSwings.length} swing{flatSwings.length === 1 ? "" : "s"}
+          {filterNote && ` · ${filterNote}`}
+        </span>
       </div>
 
-      {loading ? (
-        <p className="muted">Loading…</p>
-      ) : sessions.length === 0 ? (
+      {(data.sessions || []).length === 0 ? (
         <div className="empty">
           <p className="big">No swings saved yet</p>
           <p className="muted">Upload a video to detect and save your swings.</p>
+        </div>
+      ) : flatSwings.length === 0 ? (
+        <div className="empty">
+          <p className="big">No swings match this filter</p>
+          <p className="muted">Try clearing the tag or club filter.</p>
         </div>
       ) : view === "flat" ? (
         <div className="clip-grid">
@@ -86,8 +65,10 @@ export default function Library() {
       ) : view === "club" ? (
         byClub.map((group) => (
           <section key={group.generic} className="session-block">
-            <div className="session-head">
-              <h2>{group.generic} <span className="muted small">· {group.swings.length}</span></h2>
+            <div className="group-rule">
+              <h2>{group.generic}</h2>
+              <span className="muted small">{group.swings.length}</span>
+              <span className="line" />
             </div>
             <div className="clip-grid">
               {group.swings.map((sw) => (
@@ -140,7 +121,7 @@ function SwingCard({ swing, fps, subtitle, onDelete, onSetClub }) {
       />
       <div className="clip-actions">
         <ClubPicker club={swing} onChange={(c) => onSetClub(swing.id, c)} />
-        <a className="download" href={swing.url} download={`swing-${swing.index + 1}.mp4`}>⤓</a>
+        <a className="download" href={swing.url} download={`swing-${swing.index + 1}.mp4`} title="Export / download">⤓</a>
         <button className="del tiny" onClick={() => onDelete(swing.id)}>Delete</button>
       </div>
     </div>
