@@ -117,6 +117,7 @@ export default function ReviewTimeline({ video, segments, setSegments, meta, set
         ref={videoRef}
         src={videoUrl(video.id)}
         controls
+        muted
         tabIndex={0}
         className="player"
         onLoadedMetadata={() => setCurrent(0)}

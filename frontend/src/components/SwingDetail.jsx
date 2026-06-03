@@ -59,6 +59,7 @@ export default function SwingDetail({ swing, session, onClose, onChanged }) {
   const [time, setTime] = useState(0);
   const [duration, setDuration] = useState(0);
   const [speed, setSpeed] = useState(1);
+  const [muted, setMuted] = useState(true); // videos default to muted
   const [tf, setTf] = useState({ s: 1, x: 0, y: 0 }); // zoom scale + pan offset
   const [panning, setPanning] = useState(false);
   const [sizeTick, setSizeTick] = useState(0);
@@ -156,6 +157,11 @@ export default function SwingDetail({ swing, session, onClose, onChanged }) {
   };
   const replay = () => { const v = videoRef.current; if (v) { v.currentTime = 0; v.play(); } };
   const changeSpeed = (r) => { const v = videoRef.current; if (v) v.playbackRate = r; setSpeed(r); };
+  const toggleMute = () => setMuted((m) => !m);
+
+  // Keep the element's muted property in sync (the `muted` attribute alone is
+  // unreliable in React).
+  useEffect(() => { if (videoRef.current) videoRef.current.muted = muted; }, [muted]);
 
   // --- zoom / pan (transform the wrap so video + overlays move together)
   const clampPan = (s, x, y) => {
@@ -382,6 +388,7 @@ export default function SwingDetail({ swing, session, onClose, onChanged }) {
                 ref={videoRef}
                 src={swing.url}
                 playsInline
+                muted
                 className="detail-video"
                 onLoadedMetadata={(e) => { setDuration(e.currentTarget.duration); syncCanvas(); }}
                 onTimeUpdate={(e) => setTime(e.currentTarget.currentTime)}
@@ -412,10 +419,13 @@ export default function SwingDetail({ swing, session, onClose, onChanged }) {
             <button className="icon-btn frame-step" data-tip="Previous frame (←)" aria-label="Previous frame" onClick={() => stepFrame(-1)}>‹</button>
             <button className="icon-btn frame-step" data-tip="Next frame (→)" aria-label="Next frame" onClick={() => stepFrame(1)}>›</button>
             <button className="icon-btn" data-tip="Replay" aria-label="Replay" onClick={replay}><Icon name="replay" /></button>
+            <button className="icon-btn" data-tip={muted ? "Unmute" : "Mute"} aria-label={muted ? "Unmute" : "Mute"} onClick={toggleMute}>
+              <Icon name={muted ? "mute" : "volume"} />
+            </button>
             <input type="range" min="0" max={duration || 0} step="0.001" value={time}
               onChange={(e) => seek(parseFloat(e.target.value))} className="scrubber" />
             <span className="muted small time">{fmt(time)} / {fmt(duration)}</span>
-            <select className="speed-select" value={speed} data-tip="Playback speed"
+            <select className="speed-select" value={speed} title="Playback speed"
               onChange={(e) => changeSpeed(parseFloat(e.target.value))} aria-label="Playback speed">
               {SPEEDS.map((r) => <option key={r} value={r}>{r}×</option>)}
             </select>

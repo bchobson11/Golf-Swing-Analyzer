@@ -298,25 +298,28 @@ input:focus, select:focus, video:focus, button:focus-visible {
 }
 .icon-btn svg { display: block; }
 .icon-btn.frame-step { font-size: 18px; line-height: 1; padding: 6px 11px; }
-.icon-btn[data-tip]::after {
+.icon-btn[data-tip]::after,
+.swatch[data-tip]::after,
+.zoom-pct[data-tip]::after {
   content: attr(data-tip);
   position: absolute; bottom: calc(100% + 7px); left: 50%; transform: translateX(-50%);
   background: var(--surface-3); color: var(--text);
-  border: 1px solid var(--border-strong); border-radius: 6px;
-  padding: 4px 8px; font-size: 12px; white-space: nowrap;
-  opacity: 0; pointer-events: none; transition: opacity 0.12s; z-index: 6;
+  border: 1px solid var(--border-strong); border-radius: 7px;
+  padding: 6px 11px; font-size: 12px; line-height: 1.2; white-space: nowrap;
+  opacity: 0; pointer-events: none; transition: opacity 0.12s; z-index: 20;
   box-shadow: var(--shadow);
 }
-.icon-btn[data-tip]:hover::after { opacity: 1; }
-.swatch[data-tip]::after {
-  content: attr(data-tip);
-  position: absolute; bottom: calc(100% + 7px); left: 50%; transform: translateX(-50%);
-  background: var(--surface-3); color: var(--text); border: 1px solid var(--border-strong);
-  border-radius: 6px; padding: 3px 7px; font-size: 11px; white-space: nowrap;
-  opacity: 0; pointer-events: none; transition: opacity 0.12s; z-index: 6;
-}
 .swatch { position: relative; }
-.swatch[data-tip]:hover::after { opacity: 1; }
+.icon-btn[data-tip]:hover::after,
+.swatch[data-tip]:hover::after,
+.zoom-pct[data-tip]:hover::after { opacity: 1; }
+
+/* Zoom cluster lives inside the overflow-clipped stage, so its tooltips open
+   downward and anchor to the right to avoid being cut off. */
+.zoom-cluster .icon-btn[data-tip]::after,
+.zoom-pct[data-tip]::after {
+  bottom: auto; top: calc(100% + 7px); left: auto; right: 0; transform: none;
+}
 .swatches { display: inline-flex; gap: 6px; }
 .swatch { width: 20px; height: 20px; padding: 0; border-radius: 50%; border: 2px solid var(--border); }
 .swatch:hover { transform: scale(1.1); }
