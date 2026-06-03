@@ -4,13 +4,16 @@ import { frameStepKeyDown } from "../frameStep.js";
 import { clubLabel } from "../clubs.js";
 import ClubPicker from "./ClubPicker.jsx";
 
-const COLORS = ["#3b82f6", "#ef4444", "#facc15", "#22c55e", "#ffffff"];
+const COLORS = ["#3b82f6", "#ef4444", "#facc15", "#22c55e", "#ffffff", "#000000"];
 const TOOLS = [
+  { key: "select", label: "Select" },
   { key: "line", label: "Line" },
   { key: "angle", label: "Angle" },
   { key: "freehand", label: "Pen" },
   { key: "circle", label: "Circle" },
+  { key: "eraser", label: "Eraser" },
 ];
+const HIT_PX = 12; // pointer distance (px) to grab/erase a shape
 
 // Skeleton connections (MediaPipe Pose indices).
 const POSE_CONNECTIONS = [
@@ -36,7 +39,14 @@ export default function SwingDetail({ swing, session, onClose, onChanged }) {
   const [tool, setTool] = useState(null);
   const [color, setColor] = useState(COLORS[0]);
   const [shapes, setShapes] = useState([]);
+  const [past, setPast] = useState([]);    // undo stack (snapshots)
+  const [future, setFuture] = useState([]); // redo stack (snapshots)
   const [draft, setDraft] = useState(null);
+  const [selectedIdx, setSelectedIdx] = useState(null);
+  const beforeRef = useRef(null); // shapes snapshot at the start of a drag action
+  const dragRef = useRef(null);   // { idx, last } while moving a shape
+  const erasingRef = useRef(false);
+  const changedRef = useRef(false); // did a drag erase/move actually change anything
   const [poseOn, setPoseOn] = useState(false);
   const [pose, setPose] = useState(null);
   const [poseStatus, setPoseStatus] = useState("idle"); // idle|loading|ready|none|error
@@ -105,8 +115,9 @@ export default function SwingDetail({ swing, session, onClose, onChanged }) {
     const ctx = c?.getContext("2d");
     if (!ctx) return;
     ctx.clearRect(0, 0, c.width, c.height);
-    [...shapes, draft].filter(Boolean).forEach((s) => drawShape(ctx, s, c.width, c.height));
-  }, [shapes, draft, sizeTick]);
+    shapes.forEach((s, i) => drawShape(ctx, s, c.width, c.height, tool === "select" && i === selectedIdx));
+    if (draft) drawShape(ctx, draft, c.width, c.height, false);
+  }, [shapes, draft, sizeTick, selectedIdx, tool]);
 
   const ensurePose = async () => {
     if (poseStatus === "ready" || poseStatus === "loading") return;
@@ -144,11 +155,22 @@ export default function SwingDetail({ swing, session, onClose, onChanged }) {
       y: Math.min(1, Math.max(0, (e.clientY - r.top) / r.height)),
     };
   };
+  const canvasWH = () => [drawCanvasRef.current.width, drawCanvasRef.current.height];
+
   const onPointerDown = (e) => {
     if (!tool) return;
     e.currentTarget.setPointerCapture?.(e.pointerId);
     const p = norm(e);
-    if (tool === "angle") {
+    const [W, H] = canvasWH();
+
+    if (tool === "eraser") {
+      beforeRef.current = shapes; changedRef.current = false; erasingRef.current = true;
+      eraseAt(p, W, H);
+    } else if (tool === "select") {
+      const idx = hitTop(shapes, p, W, H);
+      setSelectedIdx(idx);
+      if (idx != null) { dragRef.current = { idx, last: p }; beforeRef.current = shapes; changedRef.current = false; }
+    } else if (tool === "angle") {
       setDraft((d) => {
         const pts = d && d.type === "angle" ? [...d.points, p] : [p];
         if (pts.length >= 3) { commit({ type: "angle", color, points: pts.slice(0, 3) }); return null; }
@@ -158,21 +180,66 @@ export default function SwingDetail({ swing, session, onClose, onChanged }) {
       setDraft({ type: tool, color, points: [p, p] });
     }
   };
+
   const onPointerMove = (e) => {
-    if (!draft) return;
     const p = norm(e);
+    const [W, H] = canvasWH();
+    if (tool === "eraser" && erasingRef.current) { eraseAt(p, W, H); return; }
+    if (tool === "select" && dragRef.current) {
+      const { idx, last } = dragRef.current;
+      const dx = p.x - last.x, dy = p.y - last.y;
+      setShapes((cur) => cur.map((s, i) => (i === idx ? translateShape(s, dx, dy) : s)));
+      dragRef.current.last = p; changedRef.current = true;
+      return;
+    }
+    if (!draft) return;
     if (draft.type === "freehand") setDraft({ ...draft, points: [...draft.points, p] });
     else if (draft.type === "angle") setDraft({ ...draft, hover: p });
     else setDraft({ ...draft, points: [draft.points[0], p] });
   };
+
   const onPointerUp = () => {
+    if (tool === "eraser") {
+      if (erasingRef.current && changedRef.current) pushHistory(beforeRef.current);
+      erasingRef.current = false; return;
+    }
+    if (tool === "select") {
+      if (dragRef.current && changedRef.current) pushHistory(beforeRef.current);
+      dragRef.current = null; return;
+    }
     if (!draft || draft.type === "angle") return;
     commit(draft);
     setDraft(null);
   };
-  const commit = (shape) => setShapes((s) => [...s, shape]);
-  const undo = () => setShapes((s) => s.slice(0, -1));
-  const clear = () => { setShapes([]); setDraft(null); };
+
+  const eraseAt = (p, W, H) => setShapes((cur) => {
+    const next = cur.filter((s) => !shapeHit(s, p, W, H));
+    if (next.length !== cur.length) changedRef.current = true;
+    return next;
+  });
+
+  // --- snapshot-based history (works for add / erase / move / clear)
+  const pushHistory = (before) => { setPast((p) => [...p, before]); setFuture([]); };
+  const commit = (shape) => { setPast((p) => [...p, shapes]); setShapes((s) => [...s, shape]); setFuture([]); };
+  const undo = () => {
+    if (!past.length) return;
+    setFuture((f) => [shapes, ...f]);
+    setShapes(past[past.length - 1]);
+    setPast((p) => p.slice(0, -1));
+    setSelectedIdx(null);
+  };
+  const redo = () => {
+    if (!future.length) return;
+    setPast((p) => [...p, shapes]);
+    setShapes(future[0]);
+    setFuture((f) => f.slice(1));
+    setSelectedIdx(null);
+  };
+  const clear = () => {
+    if (!shapes.length) return;
+    setPast((p) => [...p, shapes]); setShapes([]); setFuture([]); setDraft(null); setSelectedIdx(null);
+  };
+  const selectTool = (key) => { setTool((cur) => (cur === key ? null : key)); setSelectedIdx(null); dragRef.current = null; };
 
   const changeClub = async (c) => {
     setClub({ ...club, ...c });
@@ -217,7 +284,7 @@ export default function SwingDetail({ swing, session, onClose, onChanged }) {
             <div className="tool-group">
               {TOOLS.map((t) => (
                 <button key={t.key} className={tool === t.key ? "active" : ""}
-                  onClick={() => setTool(tool === t.key ? null : t.key)}>{t.label}</button>
+                  onClick={() => selectTool(t.key)}>{t.label}</button>
               ))}
             </div>
             <span className="divider" />
@@ -229,8 +296,9 @@ export default function SwingDetail({ swing, session, onClose, onChanged }) {
             </span>
             <span className="divider" />
             <div className="tool-group">
-              <button onClick={undo} disabled={!shapes.length}>Undo</button>
-              <button onClick={clear} disabled={!shapes.length && !draft}>Clear</button>
+              <button onClick={undo} disabled={!past.length}>Undo</button>
+              <button onClick={redo} disabled={!future.length}>Redo</button>
+              <button onClick={clear} disabled={!shapes.length}>Clear</button>
             </div>
             <button className={`pose-btn ${poseOn ? "active" : ""}`} onClick={togglePose}>
               {poseStatus === "loading" ? "Pose…" : "◉ Pose overlay"}
@@ -260,7 +328,7 @@ export default function SwingDetail({ swing, session, onClose, onChanged }) {
               <canvas ref={poseCanvasRef} className="overlay-canvas pose" />
               <canvas
                 ref={drawCanvasRef}
-                className={`overlay-canvas draw ${tool ? "active" : ""}`}
+                className={`overlay-canvas draw ${tool ? "active" : ""} ${tool ? "tool-" + tool : ""}`}
                 onPointerDown={onPointerDown}
                 onPointerMove={onPointerMove}
                 onPointerUp={onPointerUp}
@@ -339,13 +407,15 @@ function drawPose(ctx, lm, W, H) {
   }
 }
 
-function drawShape(ctx, s, W, H) {
+function drawShape(ctx, s, W, H, selected) {
   const px = (p) => [p.x * W, p.y * H];
+  ctx.save();
   ctx.strokeStyle = s.color;
   ctx.fillStyle = s.color;
-  ctx.lineWidth = 2.5;
+  ctx.lineWidth = selected ? 3.5 : 2.5;
   ctx.lineCap = "round";
   ctx.lineJoin = "round";
+  if (selected) { ctx.shadowColor = "#3b82f6"; ctx.shadowBlur = 12; }
 
   if (s.type === "line") {
     const [a, b] = s.points.map(px);
@@ -371,6 +441,7 @@ function drawShape(ctx, s, W, H) {
       ctx.fillText(`${deg.toFixed(0)}°`, v[0] + 8, v[1] - 8);
     }
   }
+  ctx.restore();
 }
 
 const line = (ctx, a, b) => { ctx.beginPath(); ctx.moveTo(a[0], a[1]); ctx.lineTo(b[0], b[1]); ctx.stroke(); };
@@ -380,4 +451,45 @@ function angleDeg(v, a, b) {
   const dotp = v1[0] * v2[0] + v1[1] * v2[1];
   const m = Math.hypot(...v1) * Math.hypot(...v2) || 1;
   return Math.acos(Math.max(-1, Math.min(1, dotp / m))) * 180 / Math.PI;
+}
+
+// ---------------------------------------------------------------- hit testing
+function translateShape(s, dx, dy) {
+  const mv = (p) => ({ x: p.x + dx, y: p.y + dy });
+  return { ...s, points: s.points.map(mv), hover: s.hover ? mv(s.hover) : s.hover };
+}
+
+function distToSeg(p, a, b) {
+  const dx = b[0] - a[0], dy = b[1] - a[1];
+  const len2 = dx * dx + dy * dy;
+  let t = len2 ? ((p[0] - a[0]) * dx + (p[1] - a[1]) * dy) / len2 : 0;
+  t = Math.max(0, Math.min(1, t));
+  return Math.hypot(p[0] - (a[0] + t * dx), p[1] - (a[1] + t * dy));
+}
+
+function shapeHit(s, pt, W, H, thresh = HIT_PX) {
+  const px = (p) => [p.x * W, p.y * H];
+  const q = [pt.x * W, pt.y * H];
+  if (s.type === "line") return distToSeg(q, px(s.points[0]), px(s.points[1])) < thresh;
+  if (s.type === "freehand") {
+    for (let i = 1; i < s.points.length; i++)
+      if (distToSeg(q, px(s.points[i - 1]), px(s.points[i])) < thresh) return true;
+    return false;
+  }
+  if (s.type === "circle") {
+    const c = px(s.points[0]), e = px(s.points[1]);
+    const r = Math.hypot(e[0] - c[0], e[1] - c[1]);
+    return Math.abs(Math.hypot(q[0] - c[0], q[1] - c[1]) - r) < thresh;
+  }
+  if (s.type === "angle") {
+    const [v, a, b] = s.points.map(px);
+    return (a && distToSeg(q, v, a) < thresh) || (b && distToSeg(q, v, b) < thresh);
+  }
+  return false;
+}
+
+// topmost (last-drawn) shape under the pointer, or null
+function hitTop(shapes, pt, W, H) {
+  for (let i = shapes.length - 1; i >= 0; i--) if (shapeHit(shapes[i], pt, W, H)) return i;
+  return null;
 }

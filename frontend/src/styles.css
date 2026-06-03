@@ -280,7 +280,7 @@ input:focus, select:focus, video:focus, button:focus-visible {
 .analysis { min-width: 0; }
 
 .toolbar.tools {
-  display: flex; align-items: center; gap: 8px;
+  display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
   background: var(--surface); border: 1px solid var(--border);
   border-radius: var(--radius); padding: 9px 11px; box-shadow: var(--shadow);
 }
@@ -304,6 +304,8 @@ input:focus, select:focus, video:focus, button:focus-visible {
 .overlay-canvas.pose { pointer-events: none; }
 .overlay-canvas.draw { pointer-events: none; }
 .overlay-canvas.draw.active { pointer-events: auto; cursor: crosshair; }
+.overlay-canvas.draw.tool-select { cursor: move; }
+.overlay-canvas.draw.tool-eraser { cursor: cell; }
 
 .controls {
   display: flex; align-items: center; gap: 10px;
