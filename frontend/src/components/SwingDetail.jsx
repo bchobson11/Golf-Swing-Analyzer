@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { getSwingPose, updateSwingClub, deleteSwing } from "../api.js";
 import { frameStepKeyDown } from "../frameStep.js";
+import { clubLabel } from "../clubs.js";
 import ClubPicker from "./ClubPicker.jsx";
 
 const COLORS = ["#3b82f6", "#ef4444", "#facc15", "#22c55e", "#ffffff"];
@@ -186,29 +187,40 @@ export default function SwingDetail({ swing, session, onClose, onChanged }) {
     ? `Angle: ${draft.points.length}/3 points` : null;
 
   return (
-    <div className="detail-overlay">
+    <div className="detail-page">
       <div className="detail-head">
-        <h2>Swing {swing.index + 1} <span className="muted">· {session?.name}</span></h2>
-        <button className="link" onClick={onClose}>✕ Close</button>
+        <button className="back" onClick={onClose}>← Library</button>
+        <h1>Swing {swing.index + 1}</h1>
+        <div className="chips">
+          <span className="chip">{session?.name}</span>
+          {session?.recorded_date && <span className="chip">{session.recorded_date}</span>}
+          {clubLabel(club) && <span className="chip accent">{clubLabel(club)}</span>}
+        </div>
       </div>
 
       <div className="detail-body">
         <div className="analysis">
           <div className="toolbar tools">
-            {TOOLS.map((t) => (
-              <button key={t.key} className={tool === t.key ? "active" : ""}
-                onClick={() => setTool(tool === t.key ? null : t.key)}>{t.label}</button>
-            ))}
+            <div className="tool-group">
+              {TOOLS.map((t) => (
+                <button key={t.key} className={tool === t.key ? "active" : ""}
+                  onClick={() => setTool(tool === t.key ? null : t.key)}>{t.label}</button>
+              ))}
+            </div>
+            <span className="divider" />
             <span className="swatches">
               {COLORS.map((c) => (
                 <button key={c} className={`swatch ${color === c ? "active" : ""}`}
                   style={{ background: c }} onClick={() => setColor(c)} aria-label={c} />
               ))}
             </span>
-            <button onClick={undo} disabled={!shapes.length}>Undo</button>
-            <button onClick={clear} disabled={!shapes.length && !draft}>Clear</button>
-            <button className={poseOn ? "active" : ""} onClick={togglePose}>
-              {poseStatus === "loading" ? "Pose…" : "Pose overlay"}
+            <span className="divider" />
+            <div className="tool-group">
+              <button onClick={undo} disabled={!shapes.length}>Undo</button>
+              <button onClick={clear} disabled={!shapes.length && !draft}>Clear</button>
+            </div>
+            <button className={`pose-btn ${poseOn ? "active" : ""}`} onClick={togglePose}>
+              {poseStatus === "loading" ? "Pose…" : "◉ Pose overlay"}
             </button>
           </div>
           {(angleHint || poseStatus === "none" || poseStatus === "error") && (

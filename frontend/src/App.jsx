@@ -27,7 +27,8 @@ export default function App() {
 
   useEffect(() => { refresh(); }, [refresh]);
 
-  const goLibrary = () => setStage("library");
+  const goLibrary = () => { setDetail(null); setStage("library"); };
+  const openSwing = (swing, session) => { setDetail({ swing, session }); setStage("detail"); };
   const finishReview = () => {
     setVideo(null);
     setSegments([]);
@@ -52,8 +53,16 @@ export default function App() {
         {stage === "library" && (
           <Library
             data={data} view={view} tagFilter={tagFilter} clubFilter={clubFilter}
-            refresh={refresh}
-            onOpen={(swing, session) => setDetail({ swing, session })}
+            refresh={refresh} onOpen={openSwing}
+          />
+        )}
+
+        {stage === "detail" && detail && (
+          <SwingDetail
+            swing={detail.swing}
+            session={detail.session}
+            onClose={goLibrary}
+            onChanged={refresh}
           />
         )}
 
@@ -87,15 +96,6 @@ export default function App() {
           </>
         )}
       </main>
-
-      {detail && (
-        <SwingDetail
-          swing={detail.swing}
-          session={detail.session}
-          onClose={() => setDetail(null)}
-          onChanged={refresh}
-        />
-      )}
     </div>
   );
 }
