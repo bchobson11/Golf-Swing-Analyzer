@@ -85,12 +85,13 @@ export async function updateSession(id, { name, recorded_date }) {
   return res.json();
 }
 
-// Bulk-apply tags to every swing in a session (session edit page "retag").
-export async function retagSession(id, tags) {
+// Add/remove tags across all swings in a session (session edit page "retag").
+// Only touches the given tags; swing-specific tags are preserved.
+export async function retagSession(id, { add = [], remove = [] }) {
   const res = await fetch(`/api/sessions/${id}/tags`, {
     method: "PATCH",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ tags }),
+    body: JSON.stringify({ add, remove }),
   });
   if (!res.ok) throw new Error("Failed to retag session");
   return res.json();

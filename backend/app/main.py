@@ -63,8 +63,9 @@ class SessionUpdate(BaseModel):
     recorded_date: str | None = None
 
 
-class TagsUpdate(BaseModel):
-    tags: list[str] = []
+class SessionTagChanges(BaseModel):
+    add: list[str] = []
+    remove: list[str] = []
 
 
 # ---------------------------------------------------------------- upload + analyze
@@ -234,13 +235,15 @@ async def edit_session(session_id: str, body: SessionUpdate):
     return {"ok": True}
 
 
-# "Retag" on the session edit page sets the tags of every swing in the session.
+# "Retag" on the session edit page adds/removes tags common to all swings,
+# leaving swing-specific (partial) tags untouched.
 @app.patch("/api/sessions/{session_id}/tags")
-async def retag_session(session_id: str, body: TagsUpdate):
-    clean = [t.strip() for t in body.tags if t.strip()]
-    if not db.bulk_set_swing_tags(session_id, clean):
+async def retag_session(session_id: str, body: SessionTagChanges):
+    add = [t.strip() for t in body.add if t.strip()]
+    remove = [t.strip() for t in body.remove if t.strip()]
+    if not db.apply_swing_tag_changes(session_id, add, remove):
         raise HTTPException(status_code=404, detail="Session has no swings")
-    return {"ok": True, "tags": clean}
+    return {"ok": True}
 
 
 @app.delete("/api/sessions/{session_id}")

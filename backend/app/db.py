@@ -137,14 +137,26 @@ def update_session(session_id: str, name: str, recorded_date: str | None) -> boo
     return cur.rowcount > 0
 
 
-def bulk_set_swing_tags(session_id: str, tags: list[str]) -> bool:
-    """Set the tags of every swing in a session (the session-page 'retag')."""
+def apply_swing_tag_changes(session_id: str, add: list[str],
+                            remove: list[str]) -> bool:
+    """Add/remove tags across every swing in a session, preserving each swing's
+    other (swing-specific) tags. Used by the session-page 'retag', which only
+    touches tags common to all swings."""
+    rem = set(remove)
     with _lock, _connect() as conn:
-        cur = conn.execute(
-            "UPDATE swings SET tags = ? WHERE session_id = ?",
-            (json.dumps(tags), session_id),
-        )
-    return cur.rowcount > 0
+        rows = conn.execute(
+            "SELECT id, tags FROM swings WHERE session_id = ?", (session_id,)
+        ).fetchall()
+        if not rows:
+            return False
+        for r in rows:
+            kept = [t for t in json.loads(r["tags"]) if t not in rem]
+            for t in add:
+                if t not in kept:
+                    kept.append(t)
+            conn.execute("UPDATE swings SET tags = ? WHERE id = ?",
+                         (json.dumps(kept), r["id"]))
+    return True
 
 
 def _swing_row(r: sqlite3.Row) -> dict:
