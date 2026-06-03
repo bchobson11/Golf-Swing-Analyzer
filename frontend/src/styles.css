@@ -297,6 +297,7 @@ input:focus, select:focus, video:focus, button:focus-visible {
   padding: 8px; line-height: 0; color: var(--text);
 }
 .icon-btn svg { display: block; }
+.icon-btn.frame-step { font-size: 18px; line-height: 1; padding: 6px 11px; }
 .icon-btn[data-tip]::after {
   content: attr(data-tip);
   position: absolute; bottom: calc(100% + 7px); left: 50%; transform: translateX(-50%);

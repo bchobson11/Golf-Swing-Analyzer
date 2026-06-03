@@ -345,8 +345,8 @@ export default function SwingDetail({ swing, session, onClose, onChanged }) {
             <button className="icon-btn" data-tip={playing ? "Pause (Space)" : "Play (Space)"} aria-label="Play/pause" onClick={togglePlay}>
               <Icon name={playing ? "pause" : "play"} />
             </button>
-            <button className="icon-btn" data-tip="Previous frame (←)" aria-label="Previous frame" onClick={() => stepFrame(-1)}><Icon name="prev" /></button>
-            <button className="icon-btn" data-tip="Next frame (→)" aria-label="Next frame" onClick={() => stepFrame(1)}><Icon name="next" /></button>
+            <button className="icon-btn frame-step" data-tip="Previous frame (←)" aria-label="Previous frame" onClick={() => stepFrame(-1)}>‹</button>
+            <button className="icon-btn frame-step" data-tip="Next frame (→)" aria-label="Next frame" onClick={() => stepFrame(1)}>›</button>
             <input type="range" min="0" max={duration || 0} step="0.001" value={time}
               onChange={(e) => seek(parseFloat(e.target.value))} className="scrubber" />
             <span className="muted small time">{fmt(time)} / {fmt(duration)}</span>

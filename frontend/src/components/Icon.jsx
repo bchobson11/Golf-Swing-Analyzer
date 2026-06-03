@@ -82,10 +82,6 @@ export default function Icon({ name }) {
       return (<svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M7 5l12 7-12 7z" /></svg>);
     case "pause":
       return (<svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="5" width="4" height="14" rx="1" /><rect x="14" y="5" width="4" height="14" rx="1" /></svg>);
-    case "prev":
-      return (<svg {...STROKE} width="16" height="16"><path d="M15 6l-6 6 6 6" /><path d="M8 6v12" /></svg>);
-    case "next":
-      return (<svg {...STROKE} width="16" height="16"><path d="M9 6l6 6-6 6" /><path d="M16 6v12" /></svg>);
     default:
       return null;
   }
