@@ -6,6 +6,7 @@ import Library from "./components/Library.jsx";
 import SwingDetail from "./components/SwingDetail.jsx";
 import EditSession from "./components/EditSession.jsx";
 import { getLibrary } from "./api.js";
+import { orderedSwings } from "./libraryOrder.js";
 
 // Stages: "library" (home) <-> "upload" -> "review" -> "library"
 export default function App() {
@@ -60,14 +61,30 @@ export default function App() {
           />
         )}
 
-        {stage === "detail" && detail && (
-          <SwingDetail
-            swing={detail.swing}
-            session={detail.session}
-            onClose={goLibrary}
-            onChanged={refresh}
-          />
-        )}
+        {stage === "detail" && detail && (() => {
+          // Prev/next traverse the same filtered/ordered list as the library.
+          const nav = orderedSwings(data, view, tagFilter, clubFilter);
+          const idx = nav.findIndex((x) => x.swing.id === detail.swing.id);
+          const go = (delta) => {
+            const n = nav[idx + delta];
+            if (n) setDetail({ swing: n.swing, session: n.session });
+          };
+          return (
+            <SwingDetail
+              key={detail.swing.id}
+              swing={detail.swing}
+              session={detail.session}
+              onClose={goLibrary}
+              onChanged={refresh}
+              position={idx >= 0 ? idx + 1 : null}
+              total={nav.length}
+              hasPrev={idx > 0}
+              hasNext={idx >= 0 && idx < nav.length - 1}
+              onPrev={() => go(-1)}
+              onNext={() => go(1)}
+            />
+          );
+        })()}
 
         {stage === "editSession" && editing && (
           <EditSession session={editing} onClose={goLibrary} onChanged={refresh} />

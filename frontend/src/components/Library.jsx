@@ -1,18 +1,11 @@
 import { useRef } from "react";
 import { GENERIC_ORDER, clubLabel } from "../clubs.js";
+import { filterSessions } from "../libraryOrder.js";
 
 // Presentational: filtering/grouping driven by props from App + Sidebar.
 export default function Library({ data, view, tagFilter, clubFilter, onOpen, onEditSession }) {
   // Tags and club both live on swings now, so both filters apply per swing.
-  const sessions = (data.sessions || [])
-    .map((s) => ({
-      ...s,
-      allTags: [...new Set(s.swings.flatMap((sw) => sw.tags || []))],
-      swings: s.swings.filter((sw) =>
-        (!clubFilter || (sw.club_generic || "Unassigned") === clubFilter) &&
-        (!tagFilter || (sw.tags || []).includes(tagFilter))),
-    }))
-    .filter((s) => s.swings.length > 0);
+  const sessions = filterSessions(data, tagFilter, clubFilter);
 
   const flatSwings = sessions.flatMap((s) => s.swings.map((sw) => ({ ...sw, session: s })));
 

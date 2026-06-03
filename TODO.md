@@ -1,3 +1,1 @@
-When uploading a swing video the tag put in the field applies to the session, I want tags to be applied to individual swings not full sessions, I also want to add notes that stick with each swing. These notes will go under details in the detailed view
-
-Lets also add an edit session page where we can rename, redate, retag and delete sesssions
+In the detail view, lets add a next swing and previous swing functionality. I would like these navigation buttons to be above the toolbar and at the bottom of the detail page. I want the swing information to be centered on the page instead of left justified and keep the back to library button (not sure where to put, open to suggestions). Make sure the next and previous button navigates based on the filters as if it was in the library

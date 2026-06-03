@@ -36,7 +36,8 @@ const fmt = (s) => {
   return `${Math.floor(s / 60)}:${(s % 60).toFixed(1).padStart(4, "0")}`;
 };
 
-export default function SwingDetail({ swing, session, onClose, onChanged }) {
+export default function SwingDetail({ swing, session, onClose, onChanged,
+  position, total, hasPrev, hasNext, onPrev, onNext }) {
   const videoRef = useRef(null);
   const wrapRef = useRef(null);
   const stageRef = useRef(null);
@@ -353,15 +354,19 @@ export default function SwingDetail({ swing, session, onClose, onChanged }) {
 
   return (
     <div className="detail-page">
-      <div className="detail-head">
+      <div className="detail-head centered">
         <button className="back" onClick={onClose}>← Library</button>
-        <h1>Swing {swing.index + 1}</h1>
-        <div className="chips">
-          <span className="chip">{session?.name}</span>
-          {session?.recorded_date && <span className="chip">{session.recorded_date}</span>}
-          {clubLabel(club) && <span className="chip accent">{clubLabel(club)}</span>}
+        <div className="head-center">
+          <h1>Swing {swing.index + 1}</h1>
+          <div className="chips">
+            <span className="chip">{session?.name}</span>
+            {session?.recorded_date && <span className="chip">{session.recorded_date}</span>}
+            {clubLabel(club) && <span className="chip accent">{clubLabel(club)}</span>}
+          </div>
         </div>
       </div>
+
+      <SwingNav {...{ position, total, hasPrev, hasNext, onPrev, onNext }} />
 
       <div className="detail-body">
         <div className="analysis">
@@ -507,6 +512,19 @@ export default function SwingDetail({ swing, session, onClose, onChanged }) {
           </div>
         </section>
       </div>
+
+      <SwingNav bottom {...{ position, total, hasPrev, hasNext, onPrev, onNext }} />
+    </div>
+  );
+}
+
+function SwingNav({ position, total, hasPrev, hasNext, onPrev, onNext, bottom }) {
+  if (!total) return null;
+  return (
+    <div className={`swing-nav ${bottom ? "bottom" : ""}`}>
+      <button onClick={onPrev} disabled={!hasPrev}>← Previous swing</button>
+      <span className="muted small nav-pos">{position ? `${position} of ${total}` : `${total} swings`}</span>
+      <button onClick={onNext} disabled={!hasNext}>Next swing →</button>
     </div>
   );
 }
