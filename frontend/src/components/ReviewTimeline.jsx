@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { videoUrl, saveSwings } from "../api.js";
+import { frameStepKeyDown } from "../frameStep.js";
 
 const fmt = (s) => {
   if (s == null || isNaN(s)) return "0:00.0";
@@ -30,8 +31,13 @@ export default function ReviewTimeline({ video, segments, setSegments, meta, set
         setPlayRange(null);
       }
     };
+    const onSeeked = () => setCurrent(el.currentTime); // reflect frame steps
     el.addEventListener("timeupdate", onTime);
-    return () => el.removeEventListener("timeupdate", onTime);
+    el.addEventListener("seeked", onSeeked);
+    return () => {
+      el.removeEventListener("timeupdate", onTime);
+      el.removeEventListener("seeked", onSeeked);
+    };
   }, [playRange]);
 
   const seek = (t) => {
@@ -110,9 +116,12 @@ export default function ReviewTimeline({ video, segments, setSegments, meta, set
         ref={videoRef}
         src={videoUrl(video.id)}
         controls
+        tabIndex={0}
         className="player"
         onLoadedMetadata={() => setCurrent(0)}
+        onKeyDown={(e) => frameStepKeyDown(e, e.currentTarget, video.fps)}
       />
+      <p className="muted hint">Click the video, then ← / → to step one frame (Shift for 10).</p>
 
       <div className="timeline-wrap">
         <div className="track" ref={trackRef} onClick={onTrackClick}>

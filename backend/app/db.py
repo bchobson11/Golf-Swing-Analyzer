@@ -97,6 +97,7 @@ def _session_row(r: sqlite3.Row) -> dict:
         "tags": json.loads(r["tags"]),
         "filename": r["filename"],
         "duration": r["duration"],
+        "fps": r["fps"],
         "created_at": r["created_at"],
     }
 

@@ -86,6 +86,8 @@ button.link { background: none; border: none; color: var(--muted); }
   max-height: 60vh;
 }
 
+.hint { font-size: 12px; margin: 6px 2px 0; }
+
 .timeline-wrap { margin: 16px 0; }
 .track {
   position: relative;

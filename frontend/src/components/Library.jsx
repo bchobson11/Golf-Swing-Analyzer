@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { getLibrary, deleteSession, deleteSwing } from "../api.js";
+import { frameStepKeyDown } from "../frameStep.js";
 
 export default function Library() {
   const [data, setData] = useState({ sessions: [], tags: [] });
@@ -60,7 +61,7 @@ export default function Library() {
       ) : view === "flat" ? (
         <div className="clip-grid">
           {flatSwings.map((sw) => (
-            <SwingCard key={sw.id} swing={sw} subtitle={sw.session.name} onDelete={onDeleteSwing} />
+            <SwingCard key={sw.id} swing={sw} fps={sw.session.fps} subtitle={sw.session.name} onDelete={onDeleteSwing} />
           ))}
         </div>
       ) : (
@@ -78,7 +79,7 @@ export default function Library() {
             </div>
             <div className="clip-grid">
               {s.swings.map((sw) => (
-                <SwingCard key={sw.id} swing={sw} onDelete={onDeleteSwing} />
+                <SwingCard key={sw.id} swing={sw} fps={s.fps} onDelete={onDeleteSwing} />
               ))}
             </div>
           </section>
@@ -88,14 +89,22 @@ export default function Library() {
   );
 }
 
-function SwingCard({ swing, subtitle, onDelete }) {
+function SwingCard({ swing, fps, subtitle, onDelete }) {
   return (
     <div className="clip-card">
       <div className="clip-head">
         <h3>Swing {swing.index + 1}</h3>
         {subtitle && <span className="muted small">{subtitle}</span>}
       </div>
-      <video src={swing.url} controls className="clip-player" preload="metadata" />
+      <video
+        src={swing.url}
+        controls
+        tabIndex={0}
+        className="clip-player"
+        preload="metadata"
+        title="Click, then ← / → to step one frame (Shift for 10)"
+        onKeyDown={(e) => frameStepKeyDown(e, e.currentTarget, fps)}
+      />
       <div className="clip-actions">
         <a className="download" href={swing.url} download={`swing-${swing.index + 1}.mp4`}>⤓ Export</a>
         <button className="del tiny" onClick={() => onDelete(swing.id)}>Delete</button>
