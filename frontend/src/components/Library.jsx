@@ -1,16 +1,13 @@
-import { deleteSession, deleteSwing, updateSwingClub } from "../api.js";
-import { frameStepKeyDown } from "../frameStep.js";
+import { useRef } from "react";
+import { deleteSession } from "../api.js";
 import { GENERIC_ORDER, clubLabel } from "../clubs.js";
-import ClubPicker from "./ClubPicker.jsx";
 
 // Presentational: filtering/grouping driven by props from App + Sidebar.
-export default function Library({ data, view, tagFilter, clubFilter, refresh }) {
-  const onDeleteSwing = async (id) => { await deleteSwing(id); refresh(); };
+export default function Library({ data, view, tagFilter, clubFilter, refresh, onOpen }) {
   const onDeleteSession = async (id) => {
     if (!confirm("Delete this whole session and all its swings?")) return;
     await deleteSession(id); refresh();
   };
-  const onSetClub = async (id, club) => { await updateSwingClub(id, club); refresh(); };
 
   // Tag filter applies to sessions; club filter applies to swings.
   const sessions = (data.sessions || [])
@@ -29,8 +26,6 @@ export default function Library({ data, view, tagFilter, clubFilter, refresh }) 
   ].filter(Boolean).join(" · ");
 
   const heading = { flat: "All swings", sessions: "By session", club: "By club" }[view];
-
-  const cardProps = (sw, fps) => ({ swing: sw, fps, onDelete: onDeleteSwing, onSetClub });
 
   const byClub = GENERIC_ORDER
     .map((generic) => ({ generic, swings: flatSwings.filter((sw) => (sw.club_generic || "Unassigned") === generic) }))
@@ -59,7 +54,7 @@ export default function Library({ data, view, tagFilter, clubFilter, refresh }) 
       ) : view === "flat" ? (
         <div className="clip-grid">
           {flatSwings.map((sw) => (
-            <SwingCard key={sw.id} {...cardProps(sw, sw.session.fps)} subtitle={sw.session.name} />
+            <SwingCard key={sw.id} swing={sw} session={sw.session} subtitle={sw.session.name} onOpen={onOpen} />
           ))}
         </div>
       ) : view === "club" ? (
@@ -72,7 +67,7 @@ export default function Library({ data, view, tagFilter, clubFilter, refresh }) 
             </div>
             <div className="clip-grid">
               {group.swings.map((sw) => (
-                <SwingCard key={sw.id} {...cardProps(sw, sw.session.fps)} subtitle={sw.session.name} />
+                <SwingCard key={sw.id} swing={sw} session={sw.session} subtitle={sw.session.name} onOpen={onOpen} />
               ))}
             </div>
           </section>
@@ -92,7 +87,7 @@ export default function Library({ data, view, tagFilter, clubFilter, refresh }) 
             </div>
             <div className="clip-grid">
               {s.swings.map((sw) => (
-                <SwingCard key={sw.id} {...cardProps(sw, s.fps)} />
+                <SwingCard key={sw.id} swing={sw} session={s} onOpen={onOpen} />
               ))}
             </div>
           </section>
@@ -102,27 +97,27 @@ export default function Library({ data, view, tagFilter, clubFilter, refresh }) 
   );
 }
 
-function SwingCard({ swing, fps, subtitle, onDelete, onSetClub }) {
+function SwingCard({ swing, session, subtitle, onOpen }) {
   const label = clubLabel(swing);
+  const vidRef = useRef(null);
   return (
-    <div className="clip-card">
+    <div className="clip-card clickable" onClick={() => onOpen(swing, session)}>
       <div className="clip-head">
         <h3>Swing {swing.index + 1}{label && <span className="club-badge">{label}</span>}</h3>
         {subtitle && <span className="muted small">{subtitle}</span>}
       </div>
-      <video
-        src={swing.url}
-        controls
-        tabIndex={0}
-        className="clip-player"
-        preload="metadata"
-        title="Click, then ← / → to step one frame (Shift for 10)"
-        onKeyDown={(e) => frameStepKeyDown(e, e.currentTarget, fps)}
-      />
-      <div className="clip-actions">
-        <ClubPicker club={swing} onChange={(c) => onSetClub(swing.id, c)} />
-        <a className="download" href={swing.url} download={`swing-${swing.index + 1}.mp4`} title="Export / download">⤓</a>
-        <button className="del tiny" onClick={() => onDelete(swing.id)}>Delete</button>
+      <div className="clip-thumb">
+        <video
+          ref={vidRef}
+          src={swing.url}
+          muted
+          playsInline
+          preload="metadata"
+          className="clip-player"
+          onMouseEnter={() => vidRef.current?.play().catch(() => {})}
+          onMouseLeave={() => { const v = vidRef.current; if (v) { v.pause(); v.currentTime = 0; } }}
+        />
+        <span className="play-badge">▶ Analyze</span>
       </div>
     </div>
   );

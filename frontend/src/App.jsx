@@ -3,6 +3,7 @@ import Sidebar from "./components/Sidebar.jsx";
 import Uploader from "./components/Uploader.jsx";
 import ReviewTimeline from "./components/ReviewTimeline.jsx";
 import Library from "./components/Library.jsx";
+import SwingDetail from "./components/SwingDetail.jsx";
 import { getLibrary } from "./api.js";
 
 // Stages: "library" (home) <-> "upload" -> "review" -> "library"
@@ -18,6 +19,7 @@ export default function App() {
   const [view, setView] = useState("flat");
   const [tagFilter, setTagFilter] = useState(null);
   const [clubFilter, setClubFilter] = useState(null);
+  const [detail, setDetail] = useState(null); // { swing, session }
 
   const refresh = useCallback(async () => {
     try { setData(await getLibrary()); } catch { /* keep last data */ }
@@ -51,6 +53,7 @@ export default function App() {
           <Library
             data={data} view={view} tagFilter={tagFilter} clubFilter={clubFilter}
             refresh={refresh}
+            onOpen={(swing, session) => setDetail({ swing, session })}
           />
         )}
 
@@ -84,6 +87,15 @@ export default function App() {
           </>
         )}
       </main>
+
+      {detail && (
+        <SwingDetail
+          swing={detail.swing}
+          session={detail.session}
+          onClose={() => setDetail(null)}
+          onChanged={refresh}
+        />
+      )}
     </div>
   );
 }

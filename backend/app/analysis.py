@@ -45,6 +45,51 @@ L_HIP, R_HIP = 23, 24
 
 ProgressCb = Callable[[float], None]
 
+OVERLAY_FPS = 30.0  # pose sampling rate for the analysis-view skeleton overlay
+
+
+def compute_pose_overlay(path: Path) -> dict:
+    """Full per-frame pose landmarks for a clip, for the analysis overlay.
+
+    Returns normalized landmarks (x, y, visibility) per sampled frame so the
+    frontend can draw the skeleton synced to the video's currentTime.
+    """
+    if not MODEL_PATH.exists():
+        raise FileNotFoundError(f"Pose model missing: {MODEL_PATH}")
+    cap = cv2.VideoCapture(str(path))
+    if not cap.isOpened():
+        raise ValueError(f"Could not open video: {path}")
+    fps = cap.get(cv2.CAP_PROP_FPS) or 30.0
+    step = max(1, int(round(fps / OVERLAY_FPS)))
+
+    options = vision.PoseLandmarkerOptions(
+        base_options=mp_python.BaseOptions(model_asset_path=str(MODEL_PATH)),
+        running_mode=vision.RunningMode.VIDEO,
+    )
+    frames: list[dict] = []
+    with vision.PoseLandmarker.create_from_options(options) as landmarker:
+        idx = 0
+        while True:
+            if not cap.grab():
+                break
+            if idx % step == 0:
+                ok, frame = cap.retrieve()
+                if not ok:
+                    break
+                small = _downscale(frame, CONFIG["proc_width"])
+                mp_img = mp.Image(image_format=mp.ImageFormat.SRGB,
+                                  data=cv2.cvtColor(small, cv2.COLOR_BGR2RGB))
+                t = idx / fps
+                result = landmarker.detect_for_video(mp_img, int(t * 1000))
+                lm = None
+                if result.pose_landmarks:
+                    lm = [[round(p.x, 4), round(p.y, 4), round(p.visibility, 3)]
+                          for p in result.pose_landmarks[0]]
+                frames.append({"t": round(t, 3), "lm": lm})
+            idx += 1
+    cap.release()
+    return {"fps": fps, "overlay_fps": OVERLAY_FPS, "frames": frames}
+
 
 def detect_swings(path: Path, progress: ProgressCb | None = None) -> list[dict]:
     """Return a list of {start, end, peak} swing windows in seconds."""

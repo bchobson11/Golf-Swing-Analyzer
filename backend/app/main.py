@@ -7,7 +7,9 @@ Downloading a saved clip is the optional "export".
 """
 from __future__ import annotations
 
+import json
 import uuid
+from pathlib import Path
 
 from fastapi import BackgroundTasks, FastAPI, Form, HTTPException, Request, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
@@ -166,6 +168,24 @@ async def serve_clip(swing_id: str, request: Request):
     return range_response(request, path)
 
 
+def _pose_sidecar(clip_path: Path) -> Path:
+    return clip_path.with_suffix(".pose.json")
+
+
+# Sync def -> runs in a threadpool; pose compute is blocking and first-hit only.
+@app.get("/api/clips/{swing_id}/pose")
+def serve_pose(swing_id: str):
+    path = db.get_clip_path(swing_id)
+    if not path or not path.exists():
+        raise HTTPException(status_code=404, detail="Clip not found")
+    sidecar = _pose_sidecar(path)
+    if sidecar.exists():
+        return json.loads(sidecar.read_text())
+    data = analysis.compute_pose_overlay(path)  # computed once, then cached
+    sidecar.write_text(json.dumps(data))
+    return data
+
+
 @app.patch("/api/swings/{swing_id}/club")
 async def set_swing_club(swing_id: str, body: ClubUpdate):
     if not db.update_swing_club(swing_id, body.club_specific, body.club_generic):
@@ -179,6 +199,7 @@ async def remove_swing(swing_id: str):
     if path is None:
         raise HTTPException(status_code=404, detail="Swing not found")
     path.unlink(missing_ok=True)
+    _pose_sidecar(path).unlink(missing_ok=True)
     return {"ok": True}
 
 
@@ -186,4 +207,5 @@ async def remove_swing(swing_id: str):
 async def remove_session(session_id: str):
     for path in db.delete_session(session_id):
         path.unlink(missing_ok=True)
+        _pose_sidecar(path).unlink(missing_ok=True)
     return {"ok": True}

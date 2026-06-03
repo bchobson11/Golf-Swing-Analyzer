@@ -70,4 +70,10 @@ export async function deleteSwing(id) {
   return res.json();
 }
 
+export async function getSwingPose(swingId) {
+  const res = await fetch(`/api/clips/${swingId}/pose`);
+  if (!res.ok) throw new Error("Failed to load pose data");
+  return res.json();
+}
+
 export const videoUrl = (videoId) => `/api/video/${videoId}`;
