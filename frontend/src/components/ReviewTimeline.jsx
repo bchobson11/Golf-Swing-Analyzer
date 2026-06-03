@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { videoUrl, saveSwings } from "../api.js";
 import { frameStepKeyDown } from "../frameStep.js";
+import ClubPicker from "./ClubPicker.jsx";
 
 const fmt = (s) => {
   if (s == null || isNaN(s)) return "0:00.0";
@@ -185,6 +186,7 @@ export default function ReviewTimeline({ video, segments, setSegments, meta, set
               onChange={(v) => updateSeg(i, { end: v })}
             />
             <span className="dur muted">{fmt(seg.end - seg.start)}</span>
+            <ClubPicker club={seg} onChange={(c) => updateSeg(i, c)} />
             <button className="del" onClick={() => deleteSeg(i)}>
               ✕
             </button>

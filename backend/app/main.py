@@ -35,6 +35,8 @@ def _startup() -> None:
 class Segment(BaseModel):
     start: float
     end: float
+    club_specific: str | None = None
+    club_generic: str | None = None
 
 
 class SaveRequest(BaseModel):
@@ -42,6 +44,11 @@ class SaveRequest(BaseModel):
     recorded_date: str | None = None
     tags: list[str] = []
     segments: list[Segment]
+
+
+class ClubUpdate(BaseModel):
+    club_specific: str | None = None
+    club_generic: str | None = None
 
 
 # ---------------------------------------------------------------- upload + analyze
@@ -133,7 +140,8 @@ async def save(video_id: str, req: SaveRequest):
             video.cut_clip(v.path, out, seg.start, seg.end)
         except RuntimeError as e:
             raise HTTPException(status_code=500, detail=str(e))
-        db.add_swing(swing_id, video_id, i, seg.start, seg.end, str(out))
+        db.add_swing(swing_id, video_id, i, seg.start, seg.end, str(out),
+                     club_specific=seg.club_specific, club_generic=seg.club_generic)
 
     # The library only needs the small clips, so drop the big source upload.
     v.path.unlink(missing_ok=True)
@@ -156,6 +164,13 @@ async def serve_clip(swing_id: str, request: Request):
     if not path or not path.exists():
         raise HTTPException(status_code=404, detail="Clip not found")
     return range_response(request, path)
+
+
+@app.patch("/api/swings/{swing_id}/club")
+async def set_swing_club(swing_id: str, body: ClubUpdate):
+    if not db.update_swing_club(swing_id, body.club_specific, body.club_generic):
+        raise HTTPException(status_code=404, detail="Swing not found")
+    return {"ok": True}
 
 
 @app.delete("/api/swings/{swing_id}")

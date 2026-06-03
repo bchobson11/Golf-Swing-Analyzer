@@ -42,17 +42,25 @@ def init_db() -> None:
                 created_at    REAL NOT NULL
             );
             CREATE TABLE IF NOT EXISTS swings (
-                id         TEXT PRIMARY KEY,
-                session_id TEXT NOT NULL REFERENCES sessions(id) ON DELETE CASCADE,
-                idx        INTEGER NOT NULL,
-                start      REAL NOT NULL,
-                end        REAL NOT NULL,
-                clip_path  TEXT NOT NULL,
-                created_at REAL NOT NULL
+                id            TEXT PRIMARY KEY,
+                session_id    TEXT NOT NULL REFERENCES sessions(id) ON DELETE CASCADE,
+                idx           INTEGER NOT NULL,
+                start         REAL NOT NULL,
+                end           REAL NOT NULL,
+                clip_path     TEXT NOT NULL,
+                club_specific TEXT,
+                club_generic  TEXT,
+                created_at    REAL NOT NULL
             );
             CREATE INDEX IF NOT EXISTS ix_swings_session ON swings(session_id);
             """
         )
+        # Migrate older DBs that predate the club columns.
+        cols = {r["name"] for r in conn.execute("PRAGMA table_info(swings)")}
+        if "club_specific" not in cols:
+            conn.execute("ALTER TABLE swings ADD COLUMN club_specific TEXT")
+        if "club_generic" not in cols:
+            conn.execute("ALTER TABLE swings ADD COLUMN club_generic TEXT")
 
 
 def create_session(session_id: str, name: str, recorded_date: str | None,
@@ -69,13 +77,26 @@ def create_session(session_id: str, name: str, recorded_date: str | None,
 
 
 def add_swing(swing_id: str, session_id: str, idx: int, start: float,
-              end: float, clip_path: str) -> None:
+              end: float, clip_path: str, club_specific: str | None = None,
+              club_generic: str | None = None) -> None:
     with _lock, _connect() as conn:
         conn.execute(
-            """INSERT INTO swings (id, session_id, idx, start, end, clip_path, created_at)
-               VALUES (?,?,?,?,?,?,?)""",
-            (swing_id, session_id, idx, start, end, clip_path, time.time()),
+            """INSERT INTO swings
+               (id, session_id, idx, start, end, clip_path, club_specific, club_generic, created_at)
+               VALUES (?,?,?,?,?,?,?,?,?)""",
+            (swing_id, session_id, idx, start, end, clip_path,
+             club_specific, club_generic, time.time()),
         )
+
+
+def update_swing_club(swing_id: str, club_specific: str | None,
+                      club_generic: str | None) -> bool:
+    with _lock, _connect() as conn:
+        cur = conn.execute(
+            "UPDATE swings SET club_specific = ?, club_generic = ? WHERE id = ?",
+            (club_specific, club_generic, swing_id),
+        )
+    return cur.rowcount > 0
 
 
 def _swing_row(r: sqlite3.Row) -> dict:
@@ -85,6 +106,8 @@ def _swing_row(r: sqlite3.Row) -> dict:
         "index": r["idx"],
         "start": r["start"],
         "end": r["end"],
+        "club_specific": r["club_specific"],
+        "club_generic": r["club_generic"],
         "url": f"/api/clips/{r['id']}",
     }
 

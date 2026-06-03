@@ -54,6 +54,16 @@ export async function deleteSession(id) {
   return res.json();
 }
 
+export async function updateSwingClub(id, club) {
+  const res = await fetch(`/api/swings/${id}/club`, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(club),
+  });
+  if (!res.ok) throw new Error("Failed to update club");
+  return res.json();
+}
+
 export async function deleteSwing(id) {
   const res = await fetch(`/api/swings/${id}`, { method: "DELETE" });
   if (!res.ok) throw new Error("Failed to delete swing");

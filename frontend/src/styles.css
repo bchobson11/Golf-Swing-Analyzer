@@ -221,3 +221,25 @@ button.link { background: none; border: none; color: var(--muted); }
 .empty { text-align: center; padding: 64px 24px; }
 .empty .big { font-size: 18px; margin: 0 0 8px; }
 .del.tiny { padding: 4px 8px; font-size: 12px; }
+
+/* Club picker + badge */
+.club-picker {
+  background: var(--panel-2);
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 5px 8px;
+  font-size: 13px;
+}
+.clip-actions .club-picker { flex: 1; margin-right: 8px; }
+.club-badge {
+  margin-left: 8px;
+  padding: 2px 8px;
+  font-size: 12px;
+  font-weight: 600;
+  color: #06210f;
+  background: var(--accent);
+  border-radius: 999px;
+  vertical-align: middle;
+}
+.seg-list .club-picker { max-width: 150px; }
