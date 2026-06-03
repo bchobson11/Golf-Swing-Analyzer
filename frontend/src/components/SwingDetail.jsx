@@ -9,13 +9,17 @@ const COLORS = ["#3b82f6", "#ef4444", "#facc15", "#22c55e", "#ffffff", "#000000"
 const SPEEDS = [0.1, 0.25, 0.5, 1, 2];
 const MAX_ZOOM = 5;
 const TOOLS = [
-  { key: "select", label: "Select" },
+  { key: "select", label: "Select / move" },
+  { key: "pan", label: "Pan" },
+  { key: "zoom", label: "Zoom (click; ⌥-click out)" },
   { key: "line", label: "Line" },
   { key: "angle", label: "Angle" },
   { key: "freehand", label: "Pen" },
   { key: "circle", label: "Circle" },
   { key: "eraser", label: "Eraser" },
 ];
+// Tools that draw/edit on the canvas (so the draw layer captures pointer events).
+const DRAW_TOOLS = new Set(["select", "line", "angle", "freehand", "circle", "eraser"]);
 const HIT_PX = 12; // pointer distance (px) to grab/erase a shape
 
 // Skeleton connections (MediaPipe Pose indices).
@@ -60,6 +64,7 @@ export default function SwingDetail({ swing, session, onClose, onChanged }) {
   const [duration, setDuration] = useState(0);
   const [speed, setSpeed] = useState(1);
   const [muted, setMuted] = useState(true); // videos default to muted
+  const [loop, setLoop] = useState(false);
   const [tf, setTf] = useState({ s: 1, x: 0, y: 0 }); // zoom scale + pan offset
   const [panning, setPanning] = useState(false);
   const [sizeTick, setSizeTick] = useState(0);
@@ -162,6 +167,7 @@ export default function SwingDetail({ swing, session, onClose, onChanged }) {
   // Keep the element's muted property in sync (the `muted` attribute alone is
   // unreliable in React).
   useEffect(() => { if (videoRef.current) videoRef.current.muted = muted; }, [muted]);
+  useEffect(() => { if (videoRef.current) videoRef.current.loop = loop; }, [loop]);
 
   // --- zoom / pan (transform the wrap so video + overlays move together)
   const clampPan = (s, x, y) => {
@@ -170,25 +176,40 @@ export default function SwingDetail({ swing, session, onClose, onChanged }) {
     const mx = ((s - 1) * v.clientWidth) / 2, my = ((s - 1) * v.clientHeight) / 2;
     return { x: Math.max(-mx, Math.min(mx, x)), y: Math.max(-my, Math.min(my, y)) };
   };
-  const zoomTo = (next) =>
+  // Zoom keeping the point (cx, cy) (screen coords) fixed under the cursor.
+  const zoomAtPoint = (cx, cy, factor) => {
+    const wrap = wrapRef.current;
+    if (!wrap) return;
+    const r = wrap.getBoundingClientRect();
+    const fx = (cx - r.left) / r.width, fy = (cy - r.top) / r.height;
     setTf((t) => {
-      const s = Math.max(1, Math.min(MAX_ZOOM, next));
+      const s = Math.max(1, Math.min(MAX_ZOOM, t.s * factor));
       if (s === 1) return { s: 1, x: 0, y: 0 };
-      return { s, ...clampPan(s, t.x, t.y) };
+      const k = s / t.s;
+      const newW = r.width * k, newH = r.height * k;
+      const baseCx = r.left + r.width / 2 - t.x;
+      const baseCy = r.top + r.height / 2 - t.y;
+      const x = cx + newW * (0.5 - fx) - baseCx;
+      const y = cy + newH * (0.5 - fy) - baseCy;
+      return { s, ...clampPan(s, x, y) };
     });
-  const zoomBy = (f) => setTf((t) => {
-    const s = Math.max(1, Math.min(MAX_ZOOM, t.s * f));
-    if (s === 1) return { s: 1, x: 0, y: 0 };
-    return { s, ...clampPan(s, t.x, t.y) };
-  });
+  };
+  const zoomBy = (factor) => {
+    const r = wrapRef.current?.getBoundingClientRect();
+    if (r) zoomAtPoint(r.left + r.width / 2, r.top + r.height / 2, factor);
+  };
   const resetZoom = () => setTf({ s: 1, x: 0, y: 0 });
 
-  const canPan = tool === null && tf.s > 1;
   const onStageDown = (e) => {
-    if (!canPan) return;
-    stageRef.current.setPointerCapture?.(e.pointerId);
-    panRef.current = { x: e.clientX, y: e.clientY, tx: tf.x, ty: tf.y };
-    setPanning(true);
+    if (e.target.closest && e.target.closest(".zoom-cluster")) return;
+    if (tool === "pan") {
+      stageRef.current.setPointerCapture?.(e.pointerId);
+      panRef.current = { x: e.clientX, y: e.clientY, tx: tf.x, ty: tf.y };
+      setPanning(true);
+    } else if (tool === "zoom") {
+      const out = e.altKey || e.shiftKey || e.button === 2;
+      zoomAtPoint(e.clientX, e.clientY, out ? 1 / 1.4 : 1.4);
+    }
   };
   const onStageMove = (e) => {
     if (!panRef.current) return;
@@ -197,14 +218,15 @@ export default function SwingDetail({ swing, session, onClose, onChanged }) {
   };
   const onStageUp = () => { panRef.current = null; setPanning(false); };
 
-  // Non-passive wheel listener so we can preventDefault page scroll while zooming.
+  // Wheel zooms only while the Zoom tool is active (non-passive so we can
+  // preventDefault the page scroll). Re-bound when the tool changes.
   useEffect(() => {
     const el = stageRef.current;
-    if (!el) return;
-    const onWheel = (e) => { e.preventDefault(); zoomBy(e.deltaY < 0 ? 1.12 : 0.89); };
+    if (!el || tool !== "zoom") return;
+    const onWheel = (e) => { e.preventDefault(); zoomAtPoint(e.clientX, e.clientY, e.deltaY < 0 ? 1.12 : 1 / 1.12); };
     el.addEventListener("wheel", onWheel, { passive: false });
     return () => el.removeEventListener("wheel", onWheel);
-  }, []);
+  }, [tool]);
 
   // --- drawing pointer handling (coords normalized 0..1 to the video box)
   const norm = (e) => {
@@ -376,11 +398,12 @@ export default function SwingDetail({ swing, session, onClose, onChanged }) {
           )}
 
           <div
-            className={`video-stage ${canPan ? "pannable" : ""} ${panning ? "panning" : ""}`}
+            className={`video-stage ${tool === "pan" ? "tool-pan" : ""} ${tool === "zoom" ? "tool-zoom" : ""} ${panning ? "panning" : ""}`}
             ref={stageRef}
             onPointerDown={onStageDown}
             onPointerMove={onStageMove}
             onPointerUp={onStageUp}
+            onContextMenu={(e) => { if (tool === "zoom") e.preventDefault(); }}
           >
             <div className="video-wrap" ref={wrapRef}
               style={{ transform: `translate(${tf.x}px, ${tf.y}px) scale(${tf.s})` }}>
@@ -398,7 +421,7 @@ export default function SwingDetail({ swing, session, onClose, onChanged }) {
               <canvas ref={poseCanvasRef} className="overlay-canvas pose" />
               <canvas
                 ref={drawCanvasRef}
-                className={`overlay-canvas draw ${tool ? "active" : ""} ${tool ? "tool-" + tool : ""}`}
+                className={`overlay-canvas draw ${DRAW_TOOLS.has(tool) ? "active tool-" + tool : ""}`}
                 onPointerDown={onPointerDown}
                 onPointerMove={onPointerMove}
                 onPointerUp={onPointerUp}
@@ -425,6 +448,8 @@ export default function SwingDetail({ swing, session, onClose, onChanged }) {
             <input type="range" min="0" max={duration || 0} step="0.001" value={time}
               onChange={(e) => seek(parseFloat(e.target.value))} className="scrubber" />
             <span className="muted small time">{fmt(time)} / {fmt(duration)}</span>
+            <button className={`icon-btn ${loop ? "active" : ""}`} data-tip="Loop" aria-label="Loop"
+              onClick={() => setLoop((l) => !l)}><Icon name="loop" /></button>
             <select className="speed-select" value={speed} title="Playback speed"
               onChange={(e) => changeSpeed(parseFloat(e.target.value))} aria-label="Playback speed">
               {SPEEDS.map((r) => <option key={r} value={r}>{r}×</option>)}

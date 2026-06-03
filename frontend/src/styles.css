@@ -298,6 +298,7 @@ input:focus, select:focus, video:focus, button:focus-visible {
 }
 .icon-btn svg { display: block; }
 .icon-btn.frame-step { font-size: 18px; line-height: 1; padding: 6px 11px; }
+.icon-btn.active { background: var(--accent); border-color: var(--accent); color: #fff; }
 .icon-btn[data-tip]::after,
 .swatch[data-tip]::after,
 .zoom-pct[data-tip]::after {
@@ -330,8 +331,9 @@ input:focus, select:focus, video:focus, button:focus-visible {
   background: #07090e; border: 1px solid var(--border);
   border-radius: var(--radius); padding: 16px; overflow: hidden;
 }
-.video-stage.pannable { cursor: grab; }
-.video-stage.panning { cursor: grabbing; }
+.video-stage.tool-pan { cursor: grab; }
+.video-stage.tool-pan.panning { cursor: grabbing; }
+.video-stage.tool-zoom { cursor: zoom-in; }
 .video-wrap { position: relative; display: inline-block; line-height: 0; transform-origin: center center; will-change: transform; }
 .detail-video { display: block; max-height: 72vh; max-width: 100%; border-radius: var(--radius-sm); background: #000; }
 

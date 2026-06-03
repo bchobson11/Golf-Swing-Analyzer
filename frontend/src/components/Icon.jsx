@@ -78,6 +78,12 @@ export default function Icon({ name }) {
           <path d="M12 13l-3 7M12 13l3 7" />
         </svg>
       );
+    case "pan":
+      return (<svg {...STROKE}><path d="M12 2v20M2 12h20" /><path d="M9 5l3-3 3 3M9 19l3 3 3-3M5 9l-3 3 3 3M19 9l3 3-3 3" /></svg>);
+    case "zoom":
+      return (<svg {...STROKE}><circle cx="11" cy="11" r="7" /><path d="M21 21l-4.3-4.3" /><path d="M11 8v6M8 11h6" /></svg>);
+    case "loop":
+      return (<svg {...STROKE}><path d="M17 2l4 4-4 4" /><path d="M3 11V9a4 4 0 014-4h14" /><path d="M7 22l-4-4 4-4" /><path d="M21 13v2a4 4 0 01-4 4H3" /></svg>);
     case "volume":
       return (<svg {...STROKE}><path d="M4 9v6h4l5 4V5L8 9z" /><path d="M16 9a3 3 0 010 6" /><path d="M19 6.5a7 7 0 010 11" /></svg>);
     case "mute":
