@@ -53,6 +53,10 @@ class ClubUpdate(BaseModel):
     club_generic: str | None = None
 
 
+class TagsUpdate(BaseModel):
+    tags: list[str] = []
+
+
 # ---------------------------------------------------------------- upload + analyze
 
 @app.post("/api/upload")
@@ -201,6 +205,14 @@ async def remove_swing(swing_id: str):
     path.unlink(missing_ok=True)
     _pose_sidecar(path).unlink(missing_ok=True)
     return {"ok": True}
+
+
+@app.patch("/api/sessions/{session_id}/tags")
+async def set_session_tags(session_id: str, body: TagsUpdate):
+    clean = [t.strip() for t in body.tags if t.strip()]
+    if not db.update_session_tags(session_id, clean):
+        raise HTTPException(status_code=404, detail="Session not found")
+    return {"ok": True, "tags": clean}
 
 
 @app.delete("/api/sessions/{session_id}")

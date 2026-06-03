@@ -64,6 +64,16 @@ export async function updateSwingClub(id, club) {
   return res.json();
 }
 
+export async function updateSessionTags(id, tags) {
+  const res = await fetch(`/api/sessions/${id}/tags`, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ tags }),
+  });
+  if (!res.ok) throw new Error("Failed to update tags");
+  return res.json();
+}
+
 export async function deleteSwing(id) {
   const res = await fetch(`/api/swings/${id}`, { method: "DELETE" });
   if (!res.ok) throw new Error("Failed to delete swing");

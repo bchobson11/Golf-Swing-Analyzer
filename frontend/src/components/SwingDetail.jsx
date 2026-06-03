@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { getSwingPose, updateSwingClub, deleteSwing } from "../api.js";
+import { getSwingPose, updateSwingClub, deleteSwing, updateSessionTags } from "../api.js";
 import { frameStepKeyDown } from "../frameStep.js";
 import { clubLabel } from "../clubs.js";
 import ClubPicker from "./ClubPicker.jsx";
@@ -45,6 +45,8 @@ export default function SwingDetail({ swing, session, onClose, onChanged }) {
   const [duration, setDuration] = useState(0);
   const [sizeTick, setSizeTick] = useState(0);
   const [club, setClub] = useState(swing);
+  const [tags, setTags] = useState(session?.tags || []);
+  const [newTag, setNewTag] = useState("");
 
   // --- keep canvases matched to the rendered video box
   const syncCanvas = useCallback(() => {
@@ -176,6 +178,17 @@ export default function SwingDetail({ swing, session, onClose, onChanged }) {
     setClub({ ...club, ...c });
     try { await updateSwingClub(swing.id, c); onChanged?.(); } catch { /* ignore */ }
   };
+
+  const saveTags = async (next) => {
+    setTags(next);
+    try { await updateSessionTags(session.id, next); onChanged?.(); } catch { /* ignore */ }
+  };
+  const addTag = () => {
+    const t = newTag.trim();
+    if (t && !tags.includes(t)) saveTags([...tags, t]);
+    setNewTag("");
+  };
+  const removeTag = (t) => saveTags(tags.filter((x) => x !== t));
   const removeSwing = async () => {
     if (!confirm("Delete this swing?")) return;
     await deleteSwing(swing.id);
@@ -265,21 +278,39 @@ export default function SwingDetail({ swing, session, onClose, onChanged }) {
           </div>
         </div>
 
-        <aside className="detail-info">
-          <h3>Details</h3>
-          <dl>
-            <dt>Session</dt><dd>{session?.name}</dd>
-            <dt>Date</dt><dd>{session?.recorded_date || "—"}</dd>
-            <dt>Tags</dt><dd>{session?.tags?.length ? session.tags.map((t) => "#" + t).join(" ") : "—"}</dd>
-            <dt>Club</dt><dd><ClubPicker club={club} onChange={changeClub} /></dd>
-            <dt>Clip</dt><dd>{fmt(swing.start)} → {fmt(swing.end)} ({(swing.end - swing.start).toFixed(1)}s)</dd>
-          </dl>
+        <section className="detail-info">
+          <div className="info-grid">
+            <div className="info-item"><span className="k">Session</span><span className="v">{session?.name}</span></div>
+            <div className="info-item"><span className="k">Date</span><span className="v">{session?.recorded_date || "—"}</span></div>
+            <div className="info-item"><span className="k">Club</span><ClubPicker club={club} onChange={changeClub} /></div>
+            <div className="info-item"><span className="k">Clip</span><span className="v">{fmt(swing.start)} → {fmt(swing.end)} ({(swing.end - swing.start).toFixed(1)}s)</span></div>
+          </div>
+
+          <div className="info-tags">
+            <span className="k">Tags <span className="muted small">· apply to the whole session</span></span>
+            <div className="tag-edit">
+              {tags.map((t) => (
+                <span key={t} className="tag-chip">
+                  #{t}<button className="x" onClick={() => removeTag(t)} aria-label={`remove ${t}`}>×</button>
+                </span>
+              ))}
+              <input
+                className="tag-input"
+                value={newTag}
+                placeholder="add tag…"
+                onChange={(e) => setNewTag(e.target.value)}
+                onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); addTag(); } }}
+              />
+              <button className="tiny" onClick={addTag} disabled={!newTag.trim()}>Add</button>
+            </div>
+          </div>
+
           <div className="info-actions">
             <a className="btn-link" href={swing.url} download={`swing-${swing.index + 1}.mp4`}>⤓ Export clip</a>
             <button className="del" onClick={removeSwing}>Delete swing</button>
+            <span className="muted small spacer-tip">← / → frame · Space play/pause · Esc close</span>
           </div>
-          <p className="muted small">Tip: ← / → step one frame · Space play/pause · Esc close</p>
-        </aside>
+        </section>
       </div>
     </div>
   );

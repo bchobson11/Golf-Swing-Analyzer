@@ -89,6 +89,15 @@ def add_swing(swing_id: str, session_id: str, idx: int, start: float,
         )
 
 
+def update_session_tags(session_id: str, tags: list[str]) -> bool:
+    with _lock, _connect() as conn:
+        cur = conn.execute(
+            "UPDATE sessions SET tags = ? WHERE id = ?",
+            (json.dumps(tags), session_id),
+        )
+    return cur.rowcount > 0
+
+
 def update_swing_club(swing_id: str, club_specific: str | None,
                       club_generic: str | None) -> bool:
     with _lock, _connect() as conn:
