@@ -78,6 +78,8 @@ export default function Icon({ name }) {
           <path d="M12 13l-3 7M12 13l3 7" />
         </svg>
       );
+    case "replay":
+      return (<svg {...STROKE}><path d="M3 12a9 9 0 1 0 2.6-6.4" /><path d="M3 4v4h4" /></svg>);
     case "play":
       return (<svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M7 5l12 7-12 7z" /></svg>);
     case "pause":

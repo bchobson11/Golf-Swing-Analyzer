@@ -6,6 +6,8 @@ import ClubPicker from "./ClubPicker.jsx";
 import Icon from "./Icon.jsx";
 
 const COLORS = ["#3b82f6", "#ef4444", "#facc15", "#22c55e", "#ffffff", "#000000"];
+const SPEEDS = [0.1, 0.25, 0.5, 1, 2];
+const MAX_ZOOM = 5;
 const TOOLS = [
   { key: "select", label: "Select" },
   { key: "line", label: "Line" },
@@ -33,8 +35,10 @@ const fmt = (s) => {
 export default function SwingDetail({ swing, session, onClose, onChanged }) {
   const videoRef = useRef(null);
   const wrapRef = useRef(null);
+  const stageRef = useRef(null);
   const poseCanvasRef = useRef(null);
   const drawCanvasRef = useRef(null);
+  const panRef = useRef(null);
   const fps = session?.fps || 30;
 
   const [tool, setTool] = useState(null);
@@ -54,6 +58,9 @@ export default function SwingDetail({ swing, session, onClose, onChanged }) {
   const [playing, setPlaying] = useState(false);
   const [time, setTime] = useState(0);
   const [duration, setDuration] = useState(0);
+  const [speed, setSpeed] = useState(1);
+  const [tf, setTf] = useState({ s: 1, x: 0, y: 0 }); // zoom scale + pan offset
+  const [panning, setPanning] = useState(false);
   const [sizeTick, setSizeTick] = useState(0);
   const [club, setClub] = useState(swing);
   const [tags, setTags] = useState(session?.tags || []);
@@ -147,6 +154,51 @@ export default function SwingDetail({ swing, session, onClose, onChanged }) {
     const v = videoRef.current;
     if (v) { v.pause(); v.currentTime = Math.max(0, Math.min(duration, v.currentTime + dir / fps)); }
   };
+  const replay = () => { const v = videoRef.current; if (v) { v.currentTime = 0; v.play(); } };
+  const changeSpeed = (r) => { const v = videoRef.current; if (v) v.playbackRate = r; setSpeed(r); };
+
+  // --- zoom / pan (transform the wrap so video + overlays move together)
+  const clampPan = (s, x, y) => {
+    const v = videoRef.current;
+    if (!v) return { x, y };
+    const mx = ((s - 1) * v.clientWidth) / 2, my = ((s - 1) * v.clientHeight) / 2;
+    return { x: Math.max(-mx, Math.min(mx, x)), y: Math.max(-my, Math.min(my, y)) };
+  };
+  const zoomTo = (next) =>
+    setTf((t) => {
+      const s = Math.max(1, Math.min(MAX_ZOOM, next));
+      if (s === 1) return { s: 1, x: 0, y: 0 };
+      return { s, ...clampPan(s, t.x, t.y) };
+    });
+  const zoomBy = (f) => setTf((t) => {
+    const s = Math.max(1, Math.min(MAX_ZOOM, t.s * f));
+    if (s === 1) return { s: 1, x: 0, y: 0 };
+    return { s, ...clampPan(s, t.x, t.y) };
+  });
+  const resetZoom = () => setTf({ s: 1, x: 0, y: 0 });
+
+  const canPan = tool === null && tf.s > 1;
+  const onStageDown = (e) => {
+    if (!canPan) return;
+    stageRef.current.setPointerCapture?.(e.pointerId);
+    panRef.current = { x: e.clientX, y: e.clientY, tx: tf.x, ty: tf.y };
+    setPanning(true);
+  };
+  const onStageMove = (e) => {
+    if (!panRef.current) return;
+    const dx = e.clientX - panRef.current.x, dy = e.clientY - panRef.current.y;
+    setTf((t) => ({ ...t, ...clampPan(t.s, panRef.current.tx + dx, panRef.current.ty + dy) }));
+  };
+  const onStageUp = () => { panRef.current = null; setPanning(false); };
+
+  // Non-passive wheel listener so we can preventDefault page scroll while zooming.
+  useEffect(() => {
+    const el = stageRef.current;
+    if (!el) return;
+    const onWheel = (e) => { e.preventDefault(); zoomBy(e.deltaY < 0 ? 1.12 : 0.89); };
+    el.addEventListener("wheel", onWheel, { passive: false });
+    return () => el.removeEventListener("wheel", onWheel);
+  }, []);
 
   // --- drawing pointer handling (coords normalized 0..1 to the video box)
   const norm = (e) => {
@@ -317,8 +369,15 @@ export default function SwingDetail({ swing, session, onClose, onChanged }) {
             </p>
           )}
 
-          <div className="video-stage">
-            <div className="video-wrap" ref={wrapRef}>
+          <div
+            className={`video-stage ${canPan ? "pannable" : ""} ${panning ? "panning" : ""}`}
+            ref={stageRef}
+            onPointerDown={onStageDown}
+            onPointerMove={onStageMove}
+            onPointerUp={onStageUp}
+          >
+            <div className="video-wrap" ref={wrapRef}
+              style={{ transform: `translate(${tf.x}px, ${tf.y}px) scale(${tf.s})` }}>
               <video
                 ref={videoRef}
                 src={swing.url}
@@ -328,7 +387,6 @@ export default function SwingDetail({ swing, session, onClose, onChanged }) {
                 onTimeUpdate={(e) => setTime(e.currentTarget.currentTime)}
                 onPlay={() => setPlaying(true)}
                 onPause={() => setPlaying(false)}
-                onClick={togglePlay}
               />
               <canvas ref={poseCanvasRef} className="overlay-canvas pose" />
               <canvas
@@ -339,6 +397,12 @@ export default function SwingDetail({ swing, session, onClose, onChanged }) {
                 onPointerUp={onPointerUp}
               />
             </div>
+
+            <div className="zoom-cluster">
+              <button className="icon-btn" data-tip="Zoom out" aria-label="Zoom out" onClick={() => zoomBy(0.8)} disabled={tf.s <= 1}>−</button>
+              <button className="zoom-pct" data-tip="Reset zoom" aria-label="Reset zoom" onClick={resetZoom}>{Math.round(tf.s * 100)}%</button>
+              <button className="icon-btn" data-tip="Zoom in" aria-label="Zoom in" onClick={() => zoomBy(1.25)} disabled={tf.s >= MAX_ZOOM}>+</button>
+            </div>
           </div>
 
           <div className="controls">
@@ -347,9 +411,14 @@ export default function SwingDetail({ swing, session, onClose, onChanged }) {
             </button>
             <button className="icon-btn frame-step" data-tip="Previous frame (←)" aria-label="Previous frame" onClick={() => stepFrame(-1)}>‹</button>
             <button className="icon-btn frame-step" data-tip="Next frame (→)" aria-label="Next frame" onClick={() => stepFrame(1)}>›</button>
+            <button className="icon-btn" data-tip="Replay" aria-label="Replay" onClick={replay}><Icon name="replay" /></button>
             <input type="range" min="0" max={duration || 0} step="0.001" value={time}
               onChange={(e) => seek(parseFloat(e.target.value))} className="scrubber" />
             <span className="muted small time">{fmt(time)} / {fmt(duration)}</span>
+            <select className="speed-select" value={speed} data-tip="Playback speed"
+              onChange={(e) => changeSpeed(parseFloat(e.target.value))} aria-label="Playback speed">
+              {SPEEDS.map((r) => <option key={r} value={r}>{r}×</option>)}
+            </select>
           </div>
         </div>
 

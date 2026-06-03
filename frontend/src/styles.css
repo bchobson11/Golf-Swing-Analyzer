@@ -323,12 +323,27 @@ input:focus, select:focus, video:focus, button:focus-visible {
 .swatch.active { border-color: #fff; box-shadow: 0 0 0 2px var(--accent); }
 
 .video-stage {
-  display: flex; justify-content: center; margin: 14px 0;
+  position: relative; display: flex; justify-content: center; margin: 14px 0;
   background: #07090e; border: 1px solid var(--border);
-  border-radius: var(--radius); padding: 16px;
+  border-radius: var(--radius); padding: 16px; overflow: hidden;
 }
-.video-wrap { position: relative; display: inline-block; line-height: 0; }
-.detail-video { display: block; max-height: 60vh; max-width: 100%; border-radius: var(--radius-sm); background: #000; }
+.video-stage.pannable { cursor: grab; }
+.video-stage.panning { cursor: grabbing; }
+.video-wrap { position: relative; display: inline-block; line-height: 0; transform-origin: center center; will-change: transform; }
+.detail-video { display: block; max-height: 72vh; max-width: 100%; border-radius: var(--radius-sm); background: #000; }
+
+.zoom-cluster {
+  position: absolute; top: 12px; right: 12px; display: flex; align-items: center; gap: 2px;
+  background: rgba(17, 23, 34, 0.85); border: 1px solid var(--border-strong);
+  border-radius: var(--radius-sm); padding: 2px; backdrop-filter: blur(6px);
+}
+.zoom-cluster .icon-btn { padding: 4px 9px; font-size: 16px; }
+.zoom-pct {
+  background: none; border: none; color: var(--muted); font-size: 12px;
+  padding: 4px 6px; min-width: 42px; font-variant-numeric: tabular-nums;
+}
+.zoom-pct:hover { color: var(--text); background: none; }
+.speed-select { padding: 6px 8px; font-variant-numeric: tabular-nums; }
 .overlay-canvas { position: absolute; top: 0; left: 0; border-radius: var(--radius-sm); }
 .overlay-canvas.pose { pointer-events: none; }
 .overlay-canvas.draw { pointer-events: none; }
