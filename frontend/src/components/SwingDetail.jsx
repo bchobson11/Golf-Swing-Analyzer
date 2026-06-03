@@ -3,6 +3,7 @@ import { getSwingPose, updateSwingClub, deleteSwing, updateSessionTags } from ".
 import { frameStepKeyDown } from "../frameStep.js";
 import { clubLabel } from "../clubs.js";
 import ClubPicker from "./ClubPicker.jsx";
+import Icon from "./Icon.jsx";
 
 const COLORS = ["#3b82f6", "#ef4444", "#facc15", "#22c55e", "#ffffff", "#000000"];
 const TOOLS = [
@@ -283,25 +284,29 @@ export default function SwingDetail({ swing, session, onClose, onChanged }) {
           <div className="toolbar tools">
             <div className="tool-group">
               {TOOLS.map((t) => (
-                <button key={t.key} className={tool === t.key ? "active" : ""}
-                  onClick={() => selectTool(t.key)}>{t.label}</button>
+                <button key={t.key} className={`icon-btn ${tool === t.key ? "active" : ""}`}
+                  data-tip={t.label} aria-label={t.label} onClick={() => selectTool(t.key)}>
+                  <Icon name={t.key} />
+                </button>
               ))}
             </div>
             <span className="divider" />
             <span className="swatches">
               {COLORS.map((c) => (
                 <button key={c} className={`swatch ${color === c ? "active" : ""}`}
-                  style={{ background: c }} onClick={() => setColor(c)} aria-label={c} />
+                  style={{ background: c }} onClick={() => setColor(c)} data-tip={c} aria-label={`color ${c}`} />
               ))}
             </span>
             <span className="divider" />
             <div className="tool-group">
-              <button onClick={undo} disabled={!past.length}>Undo</button>
-              <button onClick={redo} disabled={!future.length}>Redo</button>
-              <button onClick={clear} disabled={!shapes.length}>Clear</button>
+              <button className="icon-btn" data-tip="Undo" aria-label="Undo" onClick={undo} disabled={!past.length}><Icon name="undo" /></button>
+              <button className="icon-btn" data-tip="Redo" aria-label="Redo" onClick={redo} disabled={!future.length}><Icon name="redo" /></button>
+              <button className="icon-btn" data-tip="Clear all" aria-label="Clear all" onClick={clear} disabled={!shapes.length}><Icon name="clear" /></button>
             </div>
-            <button className={`pose-btn ${poseOn ? "active" : ""}`} onClick={togglePose}>
-              {poseStatus === "loading" ? "Pose…" : "◉ Pose overlay"}
+            <button className={`icon-btn pose-btn ${poseOn ? "active" : ""} ${poseStatus === "loading" ? "loading" : ""}`}
+              data-tip={poseStatus === "loading" ? "Loading pose…" : "Pose overlay"}
+              aria-label="Pose overlay" onClick={togglePose}>
+              <Icon name="pose" />
             </button>
           </div>
           {(angleHint || poseStatus === "none" || poseStatus === "error") && (
@@ -337,9 +342,11 @@ export default function SwingDetail({ swing, session, onClose, onChanged }) {
           </div>
 
           <div className="controls">
-            <button onClick={togglePlay}>{playing ? "❚❚" : "▶"}</button>
-            <button onClick={() => stepFrame(-1)} title="Prev frame (←)">‹</button>
-            <button onClick={() => stepFrame(1)} title="Next frame (→)">›</button>
+            <button className="icon-btn" data-tip={playing ? "Pause (Space)" : "Play (Space)"} aria-label="Play/pause" onClick={togglePlay}>
+              <Icon name={playing ? "pause" : "play"} />
+            </button>
+            <button className="icon-btn" data-tip="Previous frame (←)" aria-label="Previous frame" onClick={() => stepFrame(-1)}><Icon name="prev" /></button>
+            <button className="icon-btn" data-tip="Next frame (→)" aria-label="Next frame" onClick={() => stepFrame(1)}><Icon name="next" /></button>
             <input type="range" min="0" max={duration || 0} step="0.001" value={time}
               onChange={(e) => seek(parseFloat(e.target.value))} className="scrubber" />
             <span className="muted small time">{fmt(time)} / {fmt(duration)}</span>

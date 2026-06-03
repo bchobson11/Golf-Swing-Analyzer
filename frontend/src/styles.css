@@ -288,6 +288,34 @@ input:focus, select:focus, video:focus, button:focus-visible {
 .toolbar.tools button.active { background: var(--accent); border-color: var(--accent); color: #fff; }
 .toolbar.tools .divider { width: 1px; height: 22px; background: var(--border); }
 .toolbar.tools .pose-btn { margin-left: auto; }
+.pose-btn.loading { opacity: 0.7; }
+
+/* Icon buttons + hover tooltips */
+.icon-btn {
+  position: relative;
+  display: inline-flex; align-items: center; justify-content: center;
+  padding: 8px; line-height: 0; color: var(--text);
+}
+.icon-btn svg { display: block; }
+.icon-btn[data-tip]::after {
+  content: attr(data-tip);
+  position: absolute; bottom: calc(100% + 7px); left: 50%; transform: translateX(-50%);
+  background: var(--surface-3); color: var(--text);
+  border: 1px solid var(--border-strong); border-radius: 6px;
+  padding: 4px 8px; font-size: 12px; white-space: nowrap;
+  opacity: 0; pointer-events: none; transition: opacity 0.12s; z-index: 6;
+  box-shadow: var(--shadow);
+}
+.icon-btn[data-tip]:hover::after { opacity: 1; }
+.swatch[data-tip]::after {
+  content: attr(data-tip);
+  position: absolute; bottom: calc(100% + 7px); left: 50%; transform: translateX(-50%);
+  background: var(--surface-3); color: var(--text); border: 1px solid var(--border-strong);
+  border-radius: 6px; padding: 3px 7px; font-size: 11px; white-space: nowrap;
+  opacity: 0; pointer-events: none; transition: opacity 0.12s; z-index: 6;
+}
+.swatch { position: relative; }
+.swatch[data-tip]:hover::after { opacity: 1; }
 .swatches { display: inline-flex; gap: 6px; }
 .swatch { width: 20px; height: 20px; padding: 0; border-radius: 50%; border: 2px solid var(--border); }
 .swatch:hover { transform: scale(1.1); }
