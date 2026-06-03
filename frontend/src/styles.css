@@ -197,7 +197,7 @@ input:focus, select:focus, video:focus, button:focus-visible {
 .seg-num { min-width: 100px; text-align: left; }
 .field { display: flex; align-items: center; gap: 4px; }
 .field label { font-size: 12px; color: var(--muted); width: 30px; }
-.field input { width: 70px; padding: 5px 7px; }
+.field input { width: 92px; padding: 5px 9px; }
 .tiny { padding: 4px 7px; font-size: 12px; }
 .dur { margin-left: auto; font-size: 13px; }
 .del { color: var(--danger); }

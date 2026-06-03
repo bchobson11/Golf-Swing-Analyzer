@@ -34,6 +34,9 @@ CONFIG = {
     "min_wrist_floor": 7.0,   # absolute floor for the wrist-speed threshold
     "max_hip_ratio": 0.30,    # reject burst if hip_translation/wrist_speed > this
     "merge_gap": 1.0,         # merge swing bursts separated by < this (s)
+    "min_hand_rise": 0.02,    # hands must rise this far (frac of frame height)
+                              # above the shoulders during the swing; rejects
+                              # waggles/addresses/putts that keep the hands low
     "pre_pad": 2.5,           # clip starts this many seconds before impact
     "post_pad": 2.0,          # clip ends this many seconds after impact
 }
@@ -93,7 +96,7 @@ def compute_pose_overlay(path: Path) -> dict:
 
 def detect_swings(path: Path, progress: ProgressCb | None = None) -> list[dict]:
     """Return a list of {start, end, peak} swing windows in seconds."""
-    times, wrist, hip, shoulder_w = _track_pose(path, progress)
+    times, wrist, hip, shoulder_w, shoulder_y = _track_pose(path, progress)
     if len(times) < 4:
         return []
 
@@ -115,7 +118,9 @@ def detect_swings(path: Path, progress: ProgressCb | None = None) -> list[dict]:
 
     duration = float(times[-1])
     runs = _find_bursts(wrist_speed, tc)
-    return _bursts_to_windows(runs, wrist_speed, hip_speed, tc, duration)
+    # Arrays aligned to tc (= times[1:], same indexing as the speed signals).
+    return _bursts_to_windows(runs, wrist_speed, hip_speed, tc, duration,
+                              wrist[1:, 1], shoulder_y[1:])
 
 
 def _track_pose(path: Path, progress: ProgressCb | None):
@@ -139,6 +144,7 @@ def _track_pose(path: Path, progress: ProgressCb | None):
     wrist: list[list[float]] = []
     hip: list[list[float]] = []
     shoulder_w: list[float] = []
+    shoulder_y: list[float] = []
 
     with vision.PoseLandmarker.create_from_options(options) as landmarker:
         idx = 0
@@ -164,10 +170,12 @@ def _track_pose(path: Path, progress: ProgressCb | None):
                     hip.append([(p[L_HIP].x + p[R_HIP].x) / 2,
                                 (p[L_HIP].y + p[R_HIP].y) / 2])
                     shoulder_w.append(abs(p[L_SHOULDER].x - p[R_SHOULDER].x))
+                    shoulder_y.append((p[L_SHOULDER].y + p[R_SHOULDER].y) / 2)
                 else:
                     wrist.append([np.nan, np.nan])
                     hip.append([np.nan, np.nan])
                     shoulder_w.append(np.nan)
+                    shoulder_y.append(np.nan)
                 if progress and frame_count:
                     progress(min(0.99, idx / frame_count))
             idx += 1
@@ -176,7 +184,8 @@ def _track_pose(path: Path, progress: ProgressCb | None):
         progress(1.0)
 
     return (np.asarray(times), np.asarray(wrist, dtype=float),
-            np.asarray(hip, dtype=float), np.asarray(shoulder_w, dtype=float))
+            np.asarray(hip, dtype=float), np.asarray(shoulder_w, dtype=float),
+            np.asarray(shoulder_y, dtype=float))
 
 
 def _downscale(frame: np.ndarray, width: int) -> np.ndarray:
@@ -227,6 +236,8 @@ def _bursts_to_windows(
     hip_speed: np.ndarray,
     times: np.ndarray,
     duration: float,
+    wrist_y: np.ndarray,
+    shoulder_y: np.ndarray,
 ) -> list[dict]:
     pre, post = CONFIG["pre_pad"], CONFIG["post_pad"]
     windows: list[dict] = []
@@ -238,9 +249,21 @@ def _bursts_to_windows(
         # Reject travelling bursts (walking toward/across the camera).
         if wrist_peak <= 0 or hip_peak / wrist_peak > CONFIG["max_hip_ratio"]:
             continue
-        impact = float(times[s + int(np.argmax(wseg))])
+        peak_idx = s + int(np.argmax(wseg))
+        impact = float(times[peak_idx])
         start = max(0.0, impact - pre)
         end = min(duration, impact + post)
+        # Reject motions where the hands never rise above the shoulders
+        # (waggles, addresses, putts, ball pickups). y grows downward, so the
+        # highest hand point is the smallest wrist_y; compare it to the
+        # shoulder height at impact.
+        win = (times >= start) & (times <= end)
+        wy = wrist_y[win]
+        if wy.size == 0 or np.all(np.isnan(wy)):
+            continue
+        hands_above = float(shoulder_y[peak_idx] - np.nanmin(wy))
+        if not np.isfinite(hands_above) or hands_above < CONFIG["min_hand_rise"]:
+            continue
         windows.append({"start": start, "end": end, "peak": wrist_peak})
 
     windows = _merge_overlaps(windows)
