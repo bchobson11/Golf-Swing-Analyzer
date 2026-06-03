@@ -64,13 +64,35 @@ export async function updateSwingClub(id, club) {
   return res.json();
 }
 
-export async function updateSessionTags(id, tags) {
+// Update a swing's tags and/or notes.
+export async function updateSwingMeta(id, meta) {
+  const res = await fetch(`/api/swings/${id}`, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(meta),
+  });
+  if (!res.ok) throw new Error("Failed to update swing");
+  return res.json();
+}
+
+export async function updateSession(id, { name, recorded_date }) {
+  const res = await fetch(`/api/sessions/${id}`, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ name, recorded_date }),
+  });
+  if (!res.ok) throw new Error("Failed to update session");
+  return res.json();
+}
+
+// Bulk-apply tags to every swing in a session (session edit page "retag").
+export async function retagSession(id, tags) {
   const res = await fetch(`/api/sessions/${id}/tags`, {
     method: "PATCH",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ tags }),
   });
-  if (!res.ok) throw new Error("Failed to update tags");
+  if (!res.ok) throw new Error("Failed to retag session");
   return res.json();
 }
 

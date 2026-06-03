@@ -4,6 +4,7 @@ import Uploader from "./components/Uploader.jsx";
 import ReviewTimeline from "./components/ReviewTimeline.jsx";
 import Library from "./components/Library.jsx";
 import SwingDetail from "./components/SwingDetail.jsx";
+import EditSession from "./components/EditSession.jsx";
 import { getLibrary } from "./api.js";
 
 // Stages: "library" (home) <-> "upload" -> "review" -> "library"
@@ -20,6 +21,7 @@ export default function App() {
   const [tagFilter, setTagFilter] = useState(null);
   const [clubFilter, setClubFilter] = useState(null);
   const [detail, setDetail] = useState(null); // { swing, session }
+  const [editing, setEditing] = useState(null); // session being edited
 
   const refresh = useCallback(async () => {
     try { setData(await getLibrary()); } catch { /* keep last data */ }
@@ -27,8 +29,9 @@ export default function App() {
 
   useEffect(() => { refresh(); }, [refresh]);
 
-  const goLibrary = () => { setDetail(null); setStage("library"); };
+  const goLibrary = () => { setDetail(null); setEditing(null); setStage("library"); };
   const openSwing = (swing, session) => { setDetail({ swing, session }); setStage("detail"); };
+  const editSession = (session) => { setEditing(session); setStage("editSession"); };
   const finishReview = () => {
     setVideo(null);
     setSegments([]);
@@ -53,7 +56,7 @@ export default function App() {
         {stage === "library" && (
           <Library
             data={data} view={view} tagFilter={tagFilter} clubFilter={clubFilter}
-            refresh={refresh} onOpen={openSwing}
+            onOpen={openSwing} onEditSession={editSession}
           />
         )}
 
@@ -64,6 +67,10 @@ export default function App() {
             onClose={goLibrary}
             onChanged={refresh}
           />
+        )}
+
+        {stage === "editSession" && editing && (
+          <EditSession session={editing} onClose={goLibrary} onChanged={refresh} />
         )}
 
         {stage === "upload" && (

@@ -230,6 +230,12 @@ input:focus, select:focus, video:focus, button:focus-visible {
 }
 .clip-card.clickable:hover .play-badge { background: var(--accent); border-color: var(--accent); }
 .clip-actions { display: flex; align-items: center; gap: 7px; margin-top: 9px; }
+.card-meta { display: flex; flex-wrap: wrap; align-items: center; gap: 5px; margin-top: 8px; }
+.mini-tag {
+  font-size: 11px; color: var(--accent); background: var(--accent-soft);
+  border: 1px solid var(--accent); border-radius: 999px; padding: 1px 7px;
+}
+.note-dot { font-size: 11px; margin-left: auto; opacity: 0.8; }
 
 .download {
   color: var(--accent); text-decoration: none; font-size: 15px;
@@ -377,6 +383,13 @@ input:focus, select:focus, video:focus, button:focus-visible {
 .info-item .v { font-size: 14px; }
 .info-item .club-picker { width: 100%; }
 
+.info-notes { display: flex; flex-direction: column; gap: 8px; padding-top: 14px; margin-top: 14px; border-top: 1px solid var(--border); }
+.info-notes > .k { font-size: 11px; text-transform: uppercase; letter-spacing: 0.05em; color: var(--muted-2); }
+.notes-input {
+  width: 100%; resize: vertical; font-family: inherit; line-height: 1.4;
+  background: var(--surface-2); border: 1px solid var(--border);
+  color: var(--text); border-radius: var(--radius-sm); padding: 9px 11px;
+}
 .info-tags { display: flex; flex-direction: column; gap: 8px; padding-top: 14px; border-top: 1px solid var(--border); }
 .info-tags > .k { font-size: 11px; text-transform: uppercase; letter-spacing: 0.05em; color: var(--muted-2); }
 .info-tags > .k .muted { text-transform: none; letter-spacing: 0; }

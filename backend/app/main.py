@@ -53,6 +53,16 @@ class ClubUpdate(BaseModel):
     club_generic: str | None = None
 
 
+class SwingMeta(BaseModel):
+    tags: list[str] | None = None
+    notes: str | None = None
+
+
+class SessionUpdate(BaseModel):
+    name: str
+    recorded_date: str | None = None
+
+
 class TagsUpdate(BaseModel):
     tags: list[str] = []
 
@@ -132,9 +142,10 @@ async def save(video_id: str, req: SaveRequest):
     if not v:
         raise HTTPException(status_code=404, detail="Video not found")
 
+    # The upload tags become each swing's default tags (tags live on swings).
+    default_tags = [t.strip() for t in req.tags if t.strip()]
     db.create_session(
-        video_id, req.name.strip() or v.filename, req.recorded_date,
-        [t.strip() for t in req.tags if t.strip()],
+        video_id, req.name.strip() or v.filename, req.recorded_date, default_tags,
         {"filename": v.filename, "duration": v.duration, "fps": v.fps,
          "width": v.width, "height": v.height},
     )
@@ -147,7 +158,8 @@ async def save(video_id: str, req: SaveRequest):
         except RuntimeError as e:
             raise HTTPException(status_code=500, detail=str(e))
         db.add_swing(swing_id, video_id, i, seg.start, seg.end, str(out),
-                     club_specific=seg.club_specific, club_generic=seg.club_generic)
+                     club_specific=seg.club_specific, club_generic=seg.club_generic,
+                     tags=default_tags)
 
     # The library only needs the small clips, so drop the big source upload.
     v.path.unlink(missing_ok=True)
@@ -160,8 +172,8 @@ async def save(video_id: str, req: SaveRequest):
 # ---------------------------------------------------------------- library
 
 @app.get("/api/library")
-async def library(tag: str | None = None):
-    return {"sessions": db.list_sessions(tag), "tags": db.all_tags()}
+async def library():
+    return {"sessions": db.list_sessions(), "tags": db.all_tags()}
 
 
 @app.get("/api/clips/{swing_id}")
@@ -197,6 +209,14 @@ async def set_swing_club(swing_id: str, body: ClubUpdate):
     return {"ok": True}
 
 
+@app.patch("/api/swings/{swing_id}")
+async def set_swing_meta(swing_id: str, body: SwingMeta):
+    tags = [t.strip() for t in body.tags if t.strip()] if body.tags is not None else None
+    if not db.update_swing_meta(swing_id, tags=tags, notes=body.notes):
+        raise HTTPException(status_code=404, detail="Swing not found")
+    return {"ok": True}
+
+
 @app.delete("/api/swings/{swing_id}")
 async def remove_swing(swing_id: str):
     path = db.delete_swing(swing_id)
@@ -207,11 +227,19 @@ async def remove_swing(swing_id: str):
     return {"ok": True}
 
 
-@app.patch("/api/sessions/{session_id}/tags")
-async def set_session_tags(session_id: str, body: TagsUpdate):
-    clean = [t.strip() for t in body.tags if t.strip()]
-    if not db.update_session_tags(session_id, clean):
+@app.patch("/api/sessions/{session_id}")
+async def edit_session(session_id: str, body: SessionUpdate):
+    if not db.update_session(session_id, body.name.strip(), body.recorded_date):
         raise HTTPException(status_code=404, detail="Session not found")
+    return {"ok": True}
+
+
+# "Retag" on the session edit page sets the tags of every swing in the session.
+@app.patch("/api/sessions/{session_id}/tags")
+async def retag_session(session_id: str, body: TagsUpdate):
+    clean = [t.strip() for t in body.tags if t.strip()]
+    if not db.bulk_set_swing_tags(session_id, clean):
+        raise HTTPException(status_code=404, detail="Session has no swings")
     return {"ok": True, "tags": clean}
 
 

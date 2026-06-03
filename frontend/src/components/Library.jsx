@@ -1,20 +1,16 @@
 import { useRef } from "react";
-import { deleteSession } from "../api.js";
 import { GENERIC_ORDER, clubLabel } from "../clubs.js";
 
 // Presentational: filtering/grouping driven by props from App + Sidebar.
-export default function Library({ data, view, tagFilter, clubFilter, refresh, onOpen }) {
-  const onDeleteSession = async (id) => {
-    if (!confirm("Delete this whole session and all its swings?")) return;
-    await deleteSession(id); refresh();
-  };
-
-  // Tag filter applies to sessions; club filter applies to swings.
+export default function Library({ data, view, tagFilter, clubFilter, onOpen, onEditSession }) {
+  // Tags and club both live on swings now, so both filters apply per swing.
   const sessions = (data.sessions || [])
-    .filter((s) => !tagFilter || s.tags.includes(tagFilter))
     .map((s) => ({
       ...s,
-      swings: s.swings.filter((sw) => !clubFilter || (sw.club_generic || "Unassigned") === clubFilter),
+      allTags: [...new Set(s.swings.flatMap((sw) => sw.tags || []))],
+      swings: s.swings.filter((sw) =>
+        (!clubFilter || (sw.club_generic || "Unassigned") === clubFilter) &&
+        (!tagFilter || (sw.tags || []).includes(tagFilter))),
     }))
     .filter((s) => s.swings.length > 0);
 
@@ -80,10 +76,10 @@ export default function Library({ data, view, tagFilter, clubFilter, refresh, on
                 <h2>{s.name}</h2>
                 <p className="muted">
                   {s.recorded_date || "—"} · {s.swings.length} swings
-                  {s.tags.length > 0 && " · " + s.tags.map((t) => "#" + t).join(" ")}
+                  {s.allTags.length > 0 && " · " + s.allTags.map((t) => "#" + t).join(" ")}
                 </p>
               </div>
-              <button className="del" onClick={() => onDeleteSession(s.id)}>Delete session</button>
+              <button onClick={() => onEditSession(s)}>Edit session</button>
             </div>
             <div className="clip-grid">
               {s.swings.map((sw) => (
@@ -99,6 +95,7 @@ export default function Library({ data, view, tagFilter, clubFilter, refresh, on
 
 function SwingCard({ swing, session, subtitle, onOpen }) {
   const label = clubLabel(swing);
+  const tags = swing.tags || [];
   const vidRef = useRef(null);
   return (
     <div className="clip-card clickable" onClick={() => onOpen(swing, session)}>
@@ -119,6 +116,12 @@ function SwingCard({ swing, session, subtitle, onOpen }) {
         />
         <span className="play-badge">▶ Analyze</span>
       </div>
+      {(tags.length > 0 || swing.notes) && (
+        <div className="card-meta">
+          {tags.map((t) => <span key={t} className="mini-tag">#{t}</span>)}
+          {swing.notes && <span className="note-dot" title="Has notes">📝</span>}
+        </div>
+      )}
     </div>
   );
 }

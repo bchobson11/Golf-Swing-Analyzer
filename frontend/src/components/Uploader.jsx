@@ -90,7 +90,7 @@ export default function Uploader({ onReady }) {
             <input type="date" value={date} onChange={(e) => setDate(e.target.value)} />
           </label>
           <label>
-            Tags (comma-separated)
+            Tags (comma-separated) <span className="muted small">· applied to each detected swing</span>
             <input value={tags} onChange={(e) => setTags(e.target.value)} placeholder="driver, range, lesson" />
           </label>
         </div>

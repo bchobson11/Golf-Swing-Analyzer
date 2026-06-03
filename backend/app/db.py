@@ -50,17 +50,28 @@ def init_db() -> None:
                 clip_path     TEXT NOT NULL,
                 club_specific TEXT,
                 club_generic  TEXT,
+                tags          TEXT NOT NULL DEFAULT '[]',
+                notes         TEXT NOT NULL DEFAULT '',
                 created_at    REAL NOT NULL
             );
             CREATE INDEX IF NOT EXISTS ix_swings_session ON swings(session_id);
             """
         )
-        # Migrate older DBs that predate the club columns.
         cols = {r["name"] for r in conn.execute("PRAGMA table_info(swings)")}
         if "club_specific" not in cols:
             conn.execute("ALTER TABLE swings ADD COLUMN club_specific TEXT")
         if "club_generic" not in cols:
             conn.execute("ALTER TABLE swings ADD COLUMN club_generic TEXT")
+        if "notes" not in cols:
+            conn.execute("ALTER TABLE swings ADD COLUMN notes TEXT NOT NULL DEFAULT ''")
+        # Tags moved from sessions to swings: add the column and, the first time,
+        # seed each swing with its session's tags so existing data is preserved.
+        if "tags" not in cols:
+            conn.execute("ALTER TABLE swings ADD COLUMN tags TEXT NOT NULL DEFAULT '[]'")
+            conn.execute(
+                "UPDATE swings SET tags = COALESCE("
+                "(SELECT tags FROM sessions WHERE sessions.id = swings.session_id), '[]')"
+            )
 
 
 def create_session(session_id: str, name: str, recorded_date: str | None,
@@ -78,24 +89,17 @@ def create_session(session_id: str, name: str, recorded_date: str | None,
 
 def add_swing(swing_id: str, session_id: str, idx: int, start: float,
               end: float, clip_path: str, club_specific: str | None = None,
-              club_generic: str | None = None) -> None:
+              club_generic: str | None = None, tags: list[str] | None = None,
+              notes: str = "") -> None:
     with _lock, _connect() as conn:
         conn.execute(
             """INSERT INTO swings
-               (id, session_id, idx, start, end, clip_path, club_specific, club_generic, created_at)
-               VALUES (?,?,?,?,?,?,?,?,?)""",
-            (swing_id, session_id, idx, start, end, clip_path,
-             club_specific, club_generic, time.time()),
+               (id, session_id, idx, start, end, clip_path, club_specific,
+                club_generic, tags, notes, created_at)
+               VALUES (?,?,?,?,?,?,?,?,?,?,?)""",
+            (swing_id, session_id, idx, start, end, clip_path, club_specific,
+             club_generic, json.dumps(tags or []), notes, time.time()),
         )
-
-
-def update_session_tags(session_id: str, tags: list[str]) -> bool:
-    with _lock, _connect() as conn:
-        cur = conn.execute(
-            "UPDATE sessions SET tags = ? WHERE id = ?",
-            (json.dumps(tags), session_id),
-        )
-    return cur.rowcount > 0
 
 
 def update_swing_club(swing_id: str, club_specific: str | None,
@@ -104,6 +108,41 @@ def update_swing_club(swing_id: str, club_specific: str | None,
         cur = conn.execute(
             "UPDATE swings SET club_specific = ?, club_generic = ? WHERE id = ?",
             (club_specific, club_generic, swing_id),
+        )
+    return cur.rowcount > 0
+
+
+def update_swing_meta(swing_id: str, tags: list[str] | None = None,
+                      notes: str | None = None) -> bool:
+    """Update a swing's tags and/or notes (only the provided fields)."""
+    sets, vals = [], []
+    if tags is not None:
+        sets.append("tags = ?"); vals.append(json.dumps(tags))
+    if notes is not None:
+        sets.append("notes = ?"); vals.append(notes)
+    if not sets:
+        return True
+    vals.append(swing_id)
+    with _lock, _connect() as conn:
+        cur = conn.execute(f"UPDATE swings SET {', '.join(sets)} WHERE id = ?", vals)
+    return cur.rowcount > 0
+
+
+def update_session(session_id: str, name: str, recorded_date: str | None) -> bool:
+    with _lock, _connect() as conn:
+        cur = conn.execute(
+            "UPDATE sessions SET name = ?, recorded_date = ? WHERE id = ?",
+            (name, recorded_date, session_id),
+        )
+    return cur.rowcount > 0
+
+
+def bulk_set_swing_tags(session_id: str, tags: list[str]) -> bool:
+    """Set the tags of every swing in a session (the session-page 'retag')."""
+    with _lock, _connect() as conn:
+        cur = conn.execute(
+            "UPDATE swings SET tags = ? WHERE session_id = ?",
+            (json.dumps(tags), session_id),
         )
     return cur.rowcount > 0
 
@@ -117,6 +156,8 @@ def _swing_row(r: sqlite3.Row) -> dict:
         "end": r["end"],
         "club_specific": r["club_specific"],
         "club_generic": r["club_generic"],
+        "tags": json.loads(r["tags"]),
+        "notes": r["notes"],
         "url": f"/api/clips/{r['id']}",
     }
 
@@ -126,7 +167,6 @@ def _session_row(r: sqlite3.Row) -> dict:
         "id": r["id"],
         "name": r["name"],
         "recorded_date": r["recorded_date"],
-        "tags": json.loads(r["tags"]),
         "filename": r["filename"],
         "duration": r["duration"],
         "fps": r["fps"],
@@ -134,7 +174,7 @@ def _session_row(r: sqlite3.Row) -> dict:
     }
 
 
-def list_sessions(tag: str | None = None) -> list[dict]:
+def list_sessions() -> list[dict]:
     """All sessions (newest first) with their swings nested."""
     with _connect() as conn:
         sessions = [
@@ -147,8 +187,6 @@ def list_sessions(tag: str | None = None) -> list[dict]:
         by_session.setdefault(r["session_id"], []).append(_swing_row(r))
     for s in sessions:
         s["swings"] = by_session.get(s["id"], [])
-    if tag:
-        sessions = [s for s in sessions if tag in s["tags"]]
     return sessions
 
 
@@ -184,7 +222,7 @@ def delete_session(session_id: str) -> list[Path]:
 
 def all_tags() -> list[str]:
     with _connect() as conn:
-        rows = conn.execute("SELECT tags FROM sessions").fetchall()
+        rows = conn.execute("SELECT tags FROM swings").fetchall()
     tags: set[str] = set()
     for r in rows:
         tags.update(json.loads(r["tags"]))

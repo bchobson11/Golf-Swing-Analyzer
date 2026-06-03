@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { getSwingPose, updateSwingClub, deleteSwing, updateSessionTags } from "../api.js";
+import { getSwingPose, updateSwingClub, deleteSwing, updateSwingMeta } from "../api.js";
 import { frameStepKeyDown } from "../frameStep.js";
 import { clubLabel } from "../clubs.js";
 import ClubPicker from "./ClubPicker.jsx";
@@ -69,8 +69,9 @@ export default function SwingDetail({ swing, session, onClose, onChanged }) {
   const [panning, setPanning] = useState(false);
   const [sizeTick, setSizeTick] = useState(0);
   const [club, setClub] = useState(swing);
-  const [tags, setTags] = useState(session?.tags || []);
+  const [tags, setTags] = useState(swing?.tags || []);
   const [newTag, setNewTag] = useState("");
+  const [notes, setNotes] = useState(swing?.notes || "");
 
   // --- keep canvases matched to the rendered video box
   const syncCanvas = useCallback(() => {
@@ -329,7 +330,7 @@ export default function SwingDetail({ swing, session, onClose, onChanged }) {
 
   const saveTags = async (next) => {
     setTags(next);
-    try { await updateSessionTags(session.id, next); onChanged?.(); } catch { /* ignore */ }
+    try { await updateSwingMeta(swing.id, { tags: next }); onChanged?.(); } catch { /* ignore */ }
   };
   const addTag = () => {
     const t = newTag.trim();
@@ -337,6 +338,9 @@ export default function SwingDetail({ swing, session, onClose, onChanged }) {
     setNewTag("");
   };
   const removeTag = (t) => saveTags(tags.filter((x) => x !== t));
+  const saveNotes = async () => {
+    try { await updateSwingMeta(swing.id, { notes }); onChanged?.(); } catch { /* ignore */ }
+  };
   const removeSwing = async () => {
     if (!confirm("Delete this swing?")) return;
     await deleteSwing(swing.id);
@@ -466,7 +470,7 @@ export default function SwingDetail({ swing, session, onClose, onChanged }) {
           </div>
 
           <div className="info-tags">
-            <span className="k">Tags <span className="muted small">· apply to the whole session</span></span>
+            <span className="k">Tags</span>
             <div className="tag-edit">
               {tags.map((t) => (
                 <span key={t} className="tag-chip">
@@ -482,6 +486,18 @@ export default function SwingDetail({ swing, session, onClose, onChanged }) {
               />
               <button className="tiny" onClick={addTag} disabled={!newTag.trim()}>Add</button>
             </div>
+          </div>
+
+          <div className="info-notes">
+            <span className="k">Notes</span>
+            <textarea
+              className="notes-input"
+              value={notes}
+              placeholder="Notes for this swing…"
+              onChange={(e) => setNotes(e.target.value)}
+              onBlur={saveNotes}
+              rows={3}
+            />
           </div>
 
           <div className="info-actions">

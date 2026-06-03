@@ -13,9 +13,10 @@ export default function Sidebar({
   const sessions = data.sessions || [];
   const swingCount = sessions.reduce((n, s) => n + s.swings.length, 0);
 
-  // Counts for filters, derived from current data.
+  // Counts for filters, derived from current data (tags live on swings).
   const tagCounts = {};
-  sessions.forEach((s) => s.tags.forEach((t) => { tagCounts[t] = (tagCounts[t] || 0) + s.swings.length; }));
+  sessions.forEach((s) => s.swings.forEach((sw) =>
+    (sw.tags || []).forEach((t) => { tagCounts[t] = (tagCounts[t] || 0) + 1; })));
   const clubCounts = {};
   sessions.forEach((s) => s.swings.forEach((sw) => {
     const g = sw.club_generic || "Unassigned";
