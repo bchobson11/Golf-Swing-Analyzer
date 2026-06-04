@@ -394,8 +394,17 @@ input:focus, select:focus, video:focus, button:focus-visible {
 .info-item .v { font-size: 14px; }
 .info-item .club-picker { width: 100%; }
 
-.info-results { display: flex; flex-direction: column; gap: 8px; padding-top: 14px; margin-top: 14px; border-top: 1px solid var(--border); }
+.info-row { display: flex; flex-direction: column; gap: 8px; padding-top: 14px; margin-top: 14px; border-top: 1px solid var(--border); }
+.info-row > .k { font-size: 11px; text-transform: uppercase; letter-spacing: 0.05em; color: var(--muted-2); }
+.info-row .club-picker { max-width: 240px; }
+
+.info-results { display: flex; flex-direction: column; gap: 12px; padding-top: 14px; margin-top: 14px; border-top: 1px solid var(--border); }
 .info-results > .k { font-size: 11px; text-transform: uppercase; letter-spacing: 0.05em; color: var(--muted-2); }
+.result-group { display: flex; flex-direction: column; gap: 8px; }
+.result-group-label {
+  font-size: 12px; font-weight: 600; color: var(--accent);
+  padding-bottom: 4px; border-bottom: 1px solid var(--border);
+}
 .results-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 12px; }
 .result-field { display: flex; flex-direction: column; gap: 5px; }
 .result-field .rk { font-size: 12px; color: var(--muted); }

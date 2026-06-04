@@ -2,7 +2,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { getSwingPose, updateSwingClub, deleteSwing, updateSwingMeta } from "../api.js";
 import { frameStepKeyDown } from "../frameStep.js";
 import { clubLabel } from "../clubs.js";
-import { RESULT_FIELDS } from "../results.js";
+import { RESULT_FIELDS, RESULT_GROUPS } from "../results.js";
 import ClubPicker from "./ClubPicker.jsx";
 import Icon from "./Icon.jsx";
 
@@ -478,8 +478,32 @@ export default function SwingDetail({ swing, session, onClose, onChanged,
           <div className="info-grid">
             <div className="info-item"><span className="k">Session</span><span className="v">{session?.name}</span></div>
             <div className="info-item"><span className="k">Date</span><span className="v">{session?.recorded_date || "—"}</span></div>
-            <div className="info-item"><span className="k">Club</span><ClubPicker club={club} onChange={changeClub} /></div>
             <div className="info-item"><span className="k">Clip</span><span className="v">{fmt(swing.start)} → {fmt(swing.end)} ({(swing.end - swing.start).toFixed(1)}s)</span></div>
+          </div>
+
+          <div className="info-row">
+            <span className="k">Club</span>
+            <ClubPicker club={club} onChange={changeClub} />
+          </div>
+
+          <div className="info-results">
+            <span className="k">Results</span>
+            {RESULT_GROUPS.map((g) => (
+              <div className="result-group" key={g.label}>
+                <span className="result-group-label">{g.label}</span>
+                <div className="results-grid">
+                  {g.fields.map((f) => (
+                    <label key={f.key} className="result-field">
+                      <span className="rk">{f.label}</span>
+                      <select value={results[f.key] || ""} onChange={(e) => changeResult(f.key, e.target.value)}>
+                        <option value="">—</option>
+                        {f.options.map((o) => <option key={o} value={o}>{o}</option>)}
+                      </select>
+                    </label>
+                  ))}
+                </div>
+              </div>
+            ))}
           </div>
 
           <div className="info-tags">
@@ -498,21 +522,6 @@ export default function SwingDetail({ swing, session, onClose, onChanged,
                 onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); addTag(); } }}
               />
               <button className="tiny" onClick={addTag} disabled={!newTag.trim()}>Add</button>
-            </div>
-          </div>
-
-          <div className="info-results">
-            <span className="k">Results</span>
-            <div className="results-grid">
-              {RESULT_FIELDS.map((f) => (
-                <label key={f.key} className="result-field">
-                  <span className="rk">{f.label}</span>
-                  <select value={results[f.key] || ""} onChange={(e) => changeResult(f.key, e.target.value)}>
-                    <option value="">—</option>
-                    {f.options.map((o) => <option key={o} value={o}>{o}</option>)}
-                  </select>
-                </label>
-              ))}
             </div>
           </div>
 
