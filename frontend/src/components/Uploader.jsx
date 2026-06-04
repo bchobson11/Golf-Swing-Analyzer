@@ -1,5 +1,6 @@
 import { useRef, useState } from "react";
 import { uploadVideo, startAnalysis, getAnalysis } from "../api.js";
+import ClubPicker from "./ClubPicker.jsx";
 
 const today = () => new Date().toISOString().slice(0, 10);
 const nameFromFile = (f) => f.name.replace(/\.[^.]+$/, "");
@@ -11,6 +12,7 @@ export default function Uploader({ onReady }) {
   const [name, setName] = useState("");
   const [date, setDate] = useState(today());
   const [tags, setTags] = useState("");
+  const [club, setClub] = useState({ club_specific: null, club_generic: null });
   const [uploadPct, setUploadPct] = useState(0);
   const [analyzePct, setAnalyzePct] = useState(0);
   const [error, setError] = useState(null);
@@ -32,12 +34,14 @@ export default function Uploader({ onReady }) {
       setPhase("analyzing");
       await startAnalysis(video.id);
       const segments = await pollAnalysis(video.id, setAnalyzePct);
+      // Seed every detected swing with the chosen default club (editable later).
+      const withClub = segments.map((s) => ({ ...s, ...club }));
       const meta = {
         name: name.trim() || nameFromFile(file),
         recorded_date: date || null,
         tags: tags.split(",").map((t) => t.trim()).filter(Boolean),
       };
-      onReady(video, segments, meta);
+      onReady(video, withClub, meta);
     } catch (e) {
       setError(e.message || String(e));
       setPhase("error");
@@ -92,6 +96,10 @@ export default function Uploader({ onReady }) {
           <label>
             Tags (comma-separated) <span className="muted small">· applied to each detected swing</span>
             <input value={tags} onChange={(e) => setTags(e.target.value)} placeholder="driver, range, lesson" />
+          </label>
+          <label>
+            Club <span className="muted small">· default for each detected swing</span>
+            <ClubPicker club={club} onChange={setClub} />
           </label>
         </div>
         <div className="toolbar">

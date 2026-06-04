@@ -99,7 +99,11 @@ export default function App() {
             <Uploader
               onReady={(vid, segs, m) => {
                 setVideo(vid);
-                setSegments(segs.map((s) => ({ start: s.start, end: s.end })));
+                setSegments(segs.map((s) => ({
+                  start: s.start, end: s.end,
+                  club_specific: s.club_specific ?? null,
+                  club_generic: s.club_generic ?? null,
+                })));
                 setMeta(m);
                 setStage("review");
               }}
