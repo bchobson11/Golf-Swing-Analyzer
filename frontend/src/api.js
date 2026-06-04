@@ -97,6 +97,31 @@ export async function retagSession(id, { add = [], remove = [] }) {
   return res.json();
 }
 
+// --- tag management (canonical tag list) ---
+export async function createTag(name) {
+  const res = await fetch("/api/tags", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ name }),
+  });
+  if (!res.ok) throw new Error("Failed to create tag");
+  return res.json();
+}
+export async function renameTag(id, name) {
+  const res = await fetch(`/api/tags/${id}`, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ name }),
+  });
+  if (!res.ok) throw new Error("Failed to rename tag");
+  return res.json();
+}
+export async function deleteTag(id) {
+  const res = await fetch(`/api/tags/${id}`, { method: "DELETE" });
+  if (!res.ok) throw new Error("Failed to delete tag");
+  return res.json();
+}
+
 export async function deleteSwing(id) {
   const res = await fetch(`/api/swings/${id}`, { method: "DELETE" });
   if (!res.ok) throw new Error("Failed to delete swing");

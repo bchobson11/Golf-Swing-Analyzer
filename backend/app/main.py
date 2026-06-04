@@ -73,6 +73,10 @@ class SessionTagChanges(BaseModel):
     remove: list[str] = []
 
 
+class TagBody(BaseModel):
+    name: str
+
+
 # ---------------------------------------------------------------- upload + analyze
 
 @app.post("/api/upload")
@@ -179,7 +183,31 @@ async def save(video_id: str, req: SaveRequest):
 
 @app.get("/api/library")
 async def library():
-    return {"sessions": db.list_sessions(), "tags": db.all_tags()}
+    return {"sessions": db.list_sessions(), "tags": db.list_tags()}
+
+
+# ---------------------------------------------------------------- tag management
+
+@app.post("/api/tags")
+async def create_tag(body: TagBody):
+    tag = db.create_tag(body.name)
+    if not tag:
+        raise HTTPException(status_code=400, detail="Invalid tag name")
+    return tag
+
+
+@app.patch("/api/tags/{tag_id}")
+async def rename_tag(tag_id: int, body: TagBody):
+    if not db.rename_tag(tag_id, body.name):
+        raise HTTPException(status_code=404, detail="Tag not found")
+    return {"ok": True}
+
+
+@app.delete("/api/tags/{tag_id}")
+async def delete_tag(tag_id: int):
+    if not db.delete_tag(tag_id):
+        raise HTTPException(status_code=404, detail="Tag not found")
+    return {"ok": True}
 
 
 @app.get("/api/clips/{swing_id}")

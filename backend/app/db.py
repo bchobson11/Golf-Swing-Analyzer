@@ -60,7 +60,16 @@ def init_db() -> None:
                 created_at    REAL NOT NULL
             );
             CREATE INDEX IF NOT EXISTS ix_swings_session ON swings(session_id);
+            CREATE TABLE IF NOT EXISTS tags (
+                id   INTEGER PRIMARY KEY AUTOINCREMENT,
+                name TEXT NOT NULL UNIQUE
+            );
             """
+        )
+        # Seed the canonical tag list from any names already on swings.
+        conn.execute(
+            "INSERT OR IGNORE INTO tags(name) "
+            "SELECT DISTINCT value FROM swings, json_each(swings.tags)"
         )
         cols = {r["name"] for r in conn.execute("PRAGMA table_info(swings)")}
         if "club_specific" not in cols:
@@ -250,10 +259,67 @@ def delete_session(session_id: str) -> list[Path]:
     return [Path(r["clip_path"]) for r in rows]
 
 
-def all_tags() -> list[str]:
+def list_tags() -> list[dict]:
+    """Canonical tag list (includes created-but-unused tags)."""
     with _connect() as conn:
-        rows = conn.execute("SELECT tags FROM swings").fetchall()
-    tags: set[str] = set()
-    for r in rows:
-        tags.update(json.loads(r["tags"]))
-    return sorted(tags)
+        return [{"id": r["id"], "name": r["name"]}
+                for r in conn.execute("SELECT id, name FROM tags ORDER BY name COLLATE NOCASE")]
+
+
+def create_tag(name: str) -> dict | None:
+    name = name.strip()
+    if not name:
+        return None
+    with _lock, _connect() as conn:
+        conn.execute("INSERT OR IGNORE INTO tags(name) VALUES (?)", (name,))
+        row = conn.execute("SELECT id, name FROM tags WHERE name = ?", (name,)).fetchone()
+    return {"id": row["id"], "name": row["name"]} if row else None
+
+
+def _rewrite_swing_tags(conn, fn) -> None:
+    """Apply fn(list)->list to every swing's tag array."""
+    for r in conn.execute("SELECT id, tags FROM swings").fetchall():
+        arr = json.loads(r["tags"])
+        new = fn(list(arr))
+        if new != arr:
+            conn.execute("UPDATE swings SET tags = ? WHERE id = ?",
+                         (json.dumps(new), r["id"]))
+
+
+def rename_tag(tag_id: int, new_name: str) -> bool:
+    new_name = new_name.strip()
+    if not new_name:
+        return False
+    with _lock, _connect() as conn:
+        row = conn.execute("SELECT name FROM tags WHERE id = ?", (tag_id,)).fetchone()
+        if not row:
+            return False
+        old = row["name"]
+        if old == new_name:
+            return True
+        # If the target name already exists, merge into it (drop this row).
+        clash = conn.execute(
+            "SELECT id FROM tags WHERE name = ? AND id != ?", (new_name, tag_id)
+        ).fetchone()
+        if clash:
+            conn.execute("DELETE FROM tags WHERE id = ?", (tag_id,))
+        else:
+            conn.execute("UPDATE tags SET name = ? WHERE id = ?", (new_name, tag_id))
+
+        def swap(arr):
+            arr = [new_name if t == old else t for t in arr]
+            seen = set()
+            return [t for t in arr if not (t in seen or seen.add(t))]
+        _rewrite_swing_tags(conn, swap)
+    return True
+
+
+def delete_tag(tag_id: int) -> bool:
+    with _lock, _connect() as conn:
+        row = conn.execute("SELECT name FROM tags WHERE id = ?", (tag_id,)).fetchone()
+        if not row:
+            return False
+        name = row["name"]
+        conn.execute("DELETE FROM tags WHERE id = ?", (tag_id,))
+        _rewrite_swing_tags(conn, lambda arr: [t for t in arr if t != name])
+    return True

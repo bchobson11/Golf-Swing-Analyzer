@@ -4,6 +4,7 @@ import { frameStepKeyDown } from "../frameStep.js";
 import { clubLabel } from "../clubs.js";
 import { RESULT_FIELDS, RESULT_GROUPS } from "../results.js";
 import ClubPicker from "./ClubPicker.jsx";
+import TagPicker from "./TagPicker.jsx";
 import Icon from "./Icon.jsx";
 
 const COLORS = ["#3b82f6", "#ef4444", "#facc15", "#22c55e", "#ffffff", "#000000"];
@@ -37,7 +38,7 @@ const fmt = (s) => {
   return `${Math.floor(s / 60)}:${(s % 60).toFixed(1).padStart(4, "0")}`;
 };
 
-export default function SwingDetail({ swing, session, onClose, onChanged,
+export default function SwingDetail({ swing, session, allTags = [], onClose, onChanged,
   position, total, hasPrev, hasNext, onPrev, onNext }) {
   const videoRef = useRef(null);
   const wrapRef = useRef(null);
@@ -72,7 +73,6 @@ export default function SwingDetail({ swing, session, onClose, onChanged,
   const [sizeTick, setSizeTick] = useState(0);
   const [club, setClub] = useState(swing);
   const [tags, setTags] = useState(swing?.tags || []);
-  const [newTag, setNewTag] = useState("");
   const [notes, setNotes] = useState(swing?.notes || "");
   const [name, setName] = useState(swing?.name || "");
   const [editingName, setEditingName] = useState(false);
@@ -339,12 +339,6 @@ export default function SwingDetail({ swing, session, onClose, onChanged,
     setTags(next);
     try { await updateSwingMeta(swing.id, { tags: next }); onChanged?.(); } catch { /* ignore */ }
   };
-  const addTag = () => {
-    const t = newTag.trim();
-    if (t && !tags.includes(t)) saveTags([...tags, t]);
-    setNewTag("");
-  };
-  const removeTag = (t) => saveTags(tags.filter((x) => x !== t));
   const saveNotes = async () => {
     try { await updateSwingMeta(swing.id, { notes }); onChanged?.(); } catch { /* ignore */ }
   };
@@ -536,21 +530,7 @@ export default function SwingDetail({ swing, session, onClose, onChanged,
 
           <div className="info-tags">
             <span className="k">Tags</span>
-            <div className="tag-edit">
-              {tags.map((t) => (
-                <span key={t} className="tag-chip">
-                  #{t}<button className="x" onClick={() => removeTag(t)} aria-label={`remove ${t}`}>×</button>
-                </span>
-              ))}
-              <input
-                className="tag-input"
-                value={newTag}
-                placeholder="add tag…"
-                onChange={(e) => setNewTag(e.target.value)}
-                onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); addTag(); } }}
-              />
-              <button className="tiny" onClick={addTag} disabled={!newTag.trim()}>Add</button>
-            </div>
+            <TagPicker value={tags} allTags={allTags} onChange={saveTags} onCreated={onChanged} />
           </div>
 
           <div className="info-notes">

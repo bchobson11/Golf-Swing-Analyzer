@@ -54,6 +54,7 @@ export default function App() {
         tagFilter={tagFilter} setTagFilter={setTagFilter}
         clubFilter={clubFilter} setClubFilter={setClubFilter}
         resultFilters={resultFilters} setResultFilter={setResultFilter}
+        refresh={refresh}
         onUpload={() => setStage("upload")}
         onHome={goLibrary}
         goLibrary={goLibrary}
@@ -81,6 +82,7 @@ export default function App() {
               key={detail.swing.id}
               swing={detail.swing}
               session={detail.session}
+              allTags={data.tags || []}
               onClose={goLibrary}
               onChanged={refresh}
               position={idx >= 0 ? idx + 1 : null}
@@ -94,7 +96,7 @@ export default function App() {
         })()}
 
         {stage === "editSession" && editing && (
-          <EditSession session={editing} onClose={goLibrary} onChanged={refresh} />
+          <EditSession session={editing} allTags={data.tags || []} onClose={goLibrary} onChanged={refresh} />
         )}
 
         {stage === "upload" && (

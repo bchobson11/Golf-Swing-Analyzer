@@ -1,9 +1,10 @@
 import { useState } from "react";
 import { updateSession, retagSession, deleteSession } from "../api.js";
+import TagPicker from "./TagPicker.jsx";
 
 // Edit-session page: rename, redate, bulk-retag (applies tags to every swing),
 // and delete the session.
-export default function EditSession({ session, onClose, onChanged }) {
+export default function EditSession({ session, allTags = [], onClose, onChanged }) {
   const [name, setName] = useState(session.name || "");
   const [date, setDate] = useState(session.recorded_date || "");
 
@@ -18,16 +19,8 @@ export default function EditSession({ session, onClose, onChanged }) {
 
   const [orig] = useState(common); // baseline to diff against on save
   const [tags, setTags] = useState(common);
-  const [newTag, setNewTag] = useState("");
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState(null);
-
-  const addTag = () => {
-    const t = newTag.trim();
-    if (t && !tags.includes(t)) setTags([...tags, t]);
-    setNewTag("");
-  };
-  const removeTag = (t) => setTags(tags.filter((x) => x !== t));
 
   async function save() {
     setSaving(true);
@@ -73,21 +66,7 @@ export default function EditSession({ session, onClose, onChanged }) {
 
         <div className="info-tags" style={{ borderTop: "none", paddingTop: 0 }}>
           <span className="k">Tags <span className="muted small">· shared by all swings — adding/removing applies to every swing</span></span>
-          <div className="tag-edit">
-            {tags.map((t) => (
-              <span key={t} className="tag-chip">
-                #{t}<button className="x" onClick={() => removeTag(t)} aria-label={`remove ${t}`}>×</button>
-              </span>
-            ))}
-            <input
-              className="tag-input"
-              value={newTag}
-              placeholder="add tag…"
-              onChange={(e) => setNewTag(e.target.value)}
-              onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); addTag(); } }}
-            />
-            <button className="tiny" onClick={addTag} disabled={!newTag.trim()}>Add</button>
-          </div>
+          <TagPicker value={tags} allTags={allTags} onChange={setTags} onCreated={onChanged} />
           {partial.length > 0 && (
             <p className="muted small">
               On some swings only (left untouched): {partial.map((t) => "#" + t).join(" ")}
