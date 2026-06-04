@@ -74,6 +74,8 @@ export default function SwingDetail({ swing, session, onClose, onChanged,
   const [tags, setTags] = useState(swing?.tags || []);
   const [newTag, setNewTag] = useState("");
   const [notes, setNotes] = useState(swing?.notes || "");
+  const [name, setName] = useState(swing?.name || "");
+  const [editingName, setEditingName] = useState(false);
   const [results, setResults] = useState(
     Object.fromEntries(RESULT_FIELDS.map((f) => [f.key, swing?.[f.key] || ""]))
   );
@@ -350,6 +352,13 @@ export default function SwingDetail({ swing, session, onClose, onChanged,
     setResults((r) => ({ ...r, [field]: value }));
     try { await updateSwingMeta(swing.id, { [field]: value || null }); onChanged?.(); } catch { /* ignore */ }
   };
+  const saveName = async () => {
+    setEditingName(false);
+    try { await updateSwingMeta(swing.id, { name: name.trim() || null }); onChanged?.(); } catch { /* ignore */ }
+  };
+
+  const displayName = name.trim() || `Swing ${swing.index + 1}`;
+  const exportName = (displayName.replace(/[\\/:*?"<>|]+/g, "").trim() || "swing");
   const removeSwing = async () => {
     if (!confirm("Delete this swing?")) return;
     await deleteSwing(swing.id);
@@ -365,7 +374,26 @@ export default function SwingDetail({ swing, session, onClose, onChanged,
       <div className="detail-head centered">
         <button className="back" onClick={onClose}>← Library</button>
         <div className="head-center">
-          <h1>Swing {swing.index + 1}</h1>
+          {editingName ? (
+            <input
+              className="name-edit"
+              value={name}
+              autoFocus
+              placeholder={`Swing ${swing.index + 1}`}
+              onChange={(e) => setName(e.target.value)}
+              onBlur={saveName}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") e.currentTarget.blur();
+                if (e.key === "Escape") { setName(swing?.name || ""); setEditingName(false); }
+              }}
+            />
+          ) : (
+            <h1 className="swing-title">
+              {displayName}
+              <button className="icon-btn name-pencil" data-tip="Rename" aria-label="Rename swing"
+                onClick={() => setEditingName(true)}><Icon name="edit" /></button>
+            </h1>
+          )}
           <div className="chips">
             <span className="chip">{session?.name}</span>
             {session?.recorded_date && <span className="chip">{session.recorded_date}</span>}
@@ -538,7 +566,7 @@ export default function SwingDetail({ swing, session, onClose, onChanged,
           </div>
 
           <div className="info-actions">
-            <a className="btn-link" href={swing.url} download={`swing-${swing.index + 1}.mp4`}>⤓ Export clip</a>
+            <a className="btn-link" href={swing.url} download={`${exportName}.mp4`}>⤓ Export clip</a>
             <button className="del" onClick={removeSwing}>Delete swing</button>
             <span className="muted small spacer-tip">← / → frame · Space play/pause · Esc close</span>
           </div>

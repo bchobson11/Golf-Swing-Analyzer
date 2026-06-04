@@ -54,6 +54,7 @@ class ClubUpdate(BaseModel):
 
 
 class SwingMeta(BaseModel):
+    name: str | None = None
     tags: list[str] | None = None
     notes: str | None = None
     direction: str | None = None

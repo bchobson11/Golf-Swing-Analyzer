@@ -1,10 +1,26 @@
-import { useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { GENERIC_ORDER, clubLabel } from "../clubs.js";
 import { filterSessions } from "../libraryOrder.js";
+import { BADGE_DEFS, DEFAULT_BADGES } from "../badges.js";
 
 // Presentational: filtering/grouping driven by props from App + Sidebar.
 export default function Library({ data, view, tagFilter, clubFilter, resultFilters = {}, onOpen, onEditSession }) {
   const sessions = filterSessions(data, { tag: tagFilter, club: clubFilter, results: resultFilters });
+
+  // Which badges to show on cards (persisted).
+  const [badges, setBadges] = useState(() => {
+    try { return { ...DEFAULT_BADGES, ...JSON.parse(localStorage.getItem("badgeConfig") || "{}") }; }
+    catch { return DEFAULT_BADGES; }
+  });
+  const [badgeMenu, setBadgeMenu] = useState(false);
+  const menuRef = useRef(null);
+  useEffect(() => { localStorage.setItem("badgeConfig", JSON.stringify(badges)); }, [badges]);
+  useEffect(() => {
+    const onDoc = (e) => { if (menuRef.current && !menuRef.current.contains(e.target)) setBadgeMenu(false); };
+    if (badgeMenu) document.addEventListener("mousedown", onDoc);
+    return () => document.removeEventListener("mousedown", onDoc);
+  }, [badgeMenu]);
+  const toggleBadge = (key) => setBadges((b) => ({ ...b, [key]: !b[key] }));
 
   const flatSwings = sessions.flatMap((s) => s.swings.map((sw) => ({ ...sw, session: s })));
 
@@ -24,10 +40,27 @@ export default function Library({ data, view, tagFilter, clubFilter, resultFilte
     <div className="library">
       <div className="content-head">
         <h1>{heading}</h1>
-        <span className="sub">
-          {flatSwings.length} swing{flatSwings.length === 1 ? "" : "s"}
-          {filterNote && ` · ${filterNote}`}
-        </span>
+        <div className="head-right">
+          <span className="sub">
+            {flatSwings.length} swing{flatSwings.length === 1 ? "" : "s"}
+            {filterNote && ` · ${filterNote}`}
+          </span>
+          <div className="badge-menu-wrap" ref={menuRef}>
+            <button className={badgeMenu ? "active" : ""} onClick={() => setBadgeMenu((o) => !o)}>Badges ▾</button>
+            {badgeMenu && (
+              <div className="badge-menu">
+                <div className="badge-menu-head">Show on cards</div>
+                {BADGE_DEFS.map((b) => (
+                  <label key={b.key}>
+                    <input type="checkbox" checked={!!badges[b.key]} onChange={() => toggleBadge(b.key)} />
+                    <span className="badge-dot" style={{ background: b.color }} />
+                    {b.label}
+                  </label>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
       </div>
 
       {(data.sessions || []).length === 0 ? (
@@ -43,7 +76,7 @@ export default function Library({ data, view, tagFilter, clubFilter, resultFilte
       ) : view === "flat" ? (
         <div className="clip-grid">
           {flatSwings.map((sw) => (
-            <SwingCard key={sw.id} swing={sw} session={sw.session} subtitle={sw.session.name} onOpen={onOpen} />
+            <SwingCard key={sw.id} swing={sw} session={sw.session} subtitle={sw.session.name} badges={badges} onOpen={onOpen} />
           ))}
         </div>
       ) : view === "club" ? (
@@ -56,7 +89,7 @@ export default function Library({ data, view, tagFilter, clubFilter, resultFilte
             </div>
             <div className="clip-grid">
               {group.swings.map((sw) => (
-                <SwingCard key={sw.id} swing={sw} session={sw.session} subtitle={sw.session.name} onOpen={onOpen} />
+                <SwingCard key={sw.id} swing={sw} session={sw.session} subtitle={sw.session.name} badges={badges} onOpen={onOpen} />
               ))}
             </div>
           </section>
@@ -76,7 +109,7 @@ export default function Library({ data, view, tagFilter, clubFilter, resultFilte
             </div>
             <div className="clip-grid">
               {s.swings.map((sw) => (
-                <SwingCard key={sw.id} swing={sw} session={s} onOpen={onOpen} />
+                <SwingCard key={sw.id} swing={sw} session={s} badges={badges} onOpen={onOpen} />
               ))}
             </div>
           </section>
@@ -86,14 +119,33 @@ export default function Library({ data, view, tagFilter, clubFilter, resultFilte
   );
 }
 
-function SwingCard({ swing, session, subtitle, onOpen }) {
-  const label = clubLabel(swing);
-  const tags = swing.tags || [];
+function cardBadges(swing, badges) {
+  const out = [];
+  for (const def of BADGE_DEFS) {
+    if (!badges[def.key]) continue;
+    if (def.key === "club") {
+      const v = clubLabel(swing);
+      if (v) out.push({ color: def.color, text: v });
+    } else if (def.key === "tags") {
+      (swing.tags || []).forEach((t) => out.push({ color: def.color, text: "#" + t }));
+    } else if (def.key === "notes") {
+      if (swing.notes) out.push({ color: def.color, icon: "📝" });
+    } else {
+      const v = swing[def.key];
+      if (v) out.push({ color: def.color, text: v });
+    }
+  }
+  return out;
+}
+
+function SwingCard({ swing, session, subtitle, badges = {}, onOpen }) {
+  const title = swing.name?.trim() || `Swing ${swing.index + 1}`;
   const vidRef = useRef(null);
+  const items = cardBadges(swing, badges);
   return (
     <div className="clip-card clickable" onClick={() => onOpen(swing, session)}>
       <div className="clip-head">
-        <h3>Swing {swing.index + 1}{label && <span className="club-badge">{label}</span>}</h3>
+        <h3>{title}</h3>
         {subtitle && <span className="muted small">{subtitle}</span>}
       </div>
       <div className="clip-thumb">
@@ -108,13 +160,17 @@ function SwingCard({ swing, session, subtitle, onOpen }) {
           onMouseLeave={() => { const v = vidRef.current; if (v) { v.pause(); v.currentTime = 0; } }}
         />
         <span className="play-badge">▶ Analyze</span>
+        {items.length > 0 && (
+          <div className="badge-stack">
+            {items.map((b, i) => (
+              <span key={i} className="card-badge"
+                style={{ color: b.color, borderColor: b.color, background: `${b.color}22` }}>
+                {b.icon || b.text}
+              </span>
+            ))}
+          </div>
+        )}
       </div>
-      {(tags.length > 0 || swing.notes) && (
-        <div className="card-meta">
-          {tags.map((t) => <span key={t} className="mini-tag">#{t}</span>)}
-          {swing.notes && <span className="note-dot" title="Has notes">📝</span>}
-        </div>
-      )}
     </div>
   );
 }

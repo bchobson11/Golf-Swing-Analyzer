@@ -228,6 +228,34 @@ input:focus, select:focus, video:focus, button:focus-visible {
   background: rgba(10, 14, 22, 0.7); border: 1px solid var(--border-strong);
   border-radius: 999px; pointer-events: none; backdrop-filter: blur(4px);
 }
+.badge-stack {
+  position: absolute; right: 7px; bottom: 7px; display: flex; flex-direction: column;
+  align-items: flex-end; gap: 4px; pointer-events: none; max-width: 75%;
+}
+.card-badge {
+  font-size: 11px; font-weight: 600; line-height: 1.2; padding: 2px 8px;
+  border: 1px solid; border-radius: 999px; white-space: nowrap;
+  max-width: 100%; overflow: hidden; text-overflow: ellipsis;
+  backdrop-filter: blur(3px);
+}
+
+/* Badges menu in the library header */
+.head-right { display: flex; align-items: center; gap: 12px; }
+.badge-menu-wrap { position: relative; }
+.badge-menu {
+  position: absolute; right: 0; top: calc(100% + 6px); z-index: 20;
+  background: var(--surface); border: 1px solid var(--border-strong);
+  border-radius: var(--radius); box-shadow: var(--shadow); padding: 8px;
+  min-width: 180px; display: flex; flex-direction: column; gap: 2px;
+}
+.badge-menu-head { font-size: 11px; text-transform: uppercase; letter-spacing: 0.05em; color: var(--muted-2); padding: 2px 8px 6px; }
+.badge-menu label {
+  display: flex; align-items: center; gap: 8px; font-size: 13px;
+  padding: 6px 8px; border-radius: var(--radius-sm); cursor: pointer;
+}
+.badge-menu label:hover { background: var(--surface-2); }
+.badge-menu input { accent-color: var(--accent); }
+.badge-dot { width: 10px; height: 10px; border-radius: 50%; }
 .clip-card.clickable:hover .play-badge { background: var(--accent); border-color: var(--accent); }
 .clip-actions { display: flex; align-items: center; gap: 7px; margin-top: 9px; }
 .card-meta { display: flex; flex-wrap: wrap; align-items: center; gap: 5px; margin-top: 8px; }
@@ -278,6 +306,14 @@ input:focus, select:focus, video:focus, button:focus-visible {
 }
 .detail-head .back:hover { color: var(--text); border-color: var(--border-strong); }
 .detail-head h1 { margin: 0; font-size: 20px; font-weight: 700; letter-spacing: -0.01em; }
+.swing-title { display: flex; align-items: center; gap: 6px; }
+.name-pencil { padding: 5px; color: var(--muted); }
+.name-pencil:hover { color: var(--text); }
+.name-edit {
+  font-size: 20px; font-weight: 700; text-align: center; color: var(--text);
+  background: var(--surface-2); border: 1px solid var(--accent);
+  border-radius: var(--radius-sm); padding: 4px 12px; min-width: 220px;
+}
 .chips { display: flex; gap: 7px; flex-wrap: wrap; justify-content: center; }
 
 /* Prev/next swing navigation */

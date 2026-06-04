@@ -88,6 +88,8 @@ export default function Icon({ name }) {
       return (<svg {...STROKE}><path d="M4 9v6h4l5 4V5L8 9z" /><path d="M16 9a3 3 0 010 6" /><path d="M19 6.5a7 7 0 010 11" /></svg>);
     case "mute":
       return (<svg {...STROKE}><path d="M4 9v6h4l5 4V5L8 9z" /><path d="M16 9.5l5 5M21 9.5l-5 5" /></svg>);
+    case "edit":
+      return (<svg {...STROKE} width="15" height="15"><path d="M12 20h9" /><path d="M16.5 3.5a2.1 2.1 0 013 3L7 19l-4 1 1-4z" /></svg>);
     case "replay":
       return (<svg {...STROKE}><path d="M3 12a9 9 0 1 0 2.6-6.4" /><path d="M3 4v4h4" /></svg>);
     case "play":
