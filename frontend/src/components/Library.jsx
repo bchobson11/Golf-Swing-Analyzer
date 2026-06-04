@@ -164,7 +164,7 @@ function SwingCard({ swing, session, subtitle, badges = {}, onOpen }) {
           <div className="badge-stack">
             {items.map((b, i) => (
               <span key={i} className="card-badge"
-                style={{ color: b.color, borderColor: b.color, background: `${b.color}22` }}>
+                style={{ color: b.color, borderColor: b.color }}>
                 {b.icon || b.text}
               </span>
             ))}
