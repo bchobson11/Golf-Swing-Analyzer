@@ -241,7 +241,8 @@ input:focus, select:focus, video:focus, button:focus-visible {
 .clip-card:hover { border-color: var(--border-strong); }
 .clip-card.clickable { cursor: pointer; }
 .clip-card.clickable:hover { border-color: var(--accent); transform: translateY(-1px); }
-.clip-head { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 8px; gap: 6px; }
+.clip-head { display: flex; align-items: center; margin-bottom: 8px; gap: 6px; }
+.clip-head .card-title { margin-right: auto; }
 .clip-card h3 { margin: 0; font-size: 14px; display: flex; align-items: center; gap: 7px; }
 .clip-thumb {
   position: relative; aspect-ratio: 3 / 5; overflow: hidden;
@@ -334,6 +335,7 @@ input:focus, select:focus, video:focus, button:focus-visible {
 }
 .detail-head .back:hover { color: var(--text); border-color: var(--border-strong); }
 .detail-head h1 { margin: 0; font-size: 20px; font-weight: 700; letter-spacing: -0.01em; }
+.title-row { display: flex; align-items: center; gap: 8px; }
 .swing-title { display: flex; align-items: center; gap: 6px; }
 .name-pencil { padding: 5px; color: var(--muted); }
 .name-pencil:hover { color: var(--text); }
@@ -380,6 +382,12 @@ input:focus, select:focus, video:focus, button:focus-visible {
 .icon-btn svg { display: block; }
 .icon-btn.frame-step { font-size: 18px; line-height: 1; padding: 6px 11px; }
 .icon-btn.active { background: var(--accent); border-color: var(--accent); color: #fff; }
+
+/* Golf-ball favorite toggle */
+.favorite { padding: 4px; color: var(--muted-2); line-height: 0; }
+.favorite:hover { color: var(--text); }
+.favorite.on { color: #fff; }
+.favorite.on:hover { color: #e8edf5; }
 .icon-btn[data-tip]::after,
 .swatch[data-tip]::after,
 .zoom-pct[data-tip]::after {

@@ -64,7 +64,7 @@ export default function App() {
         {stage === "library" && (
           <Library
             data={data} view={view} tagFilter={tagFilter} clubFilter={clubFilter}
-            resultFilters={resultFilters}
+            resultFilters={resultFilters} refresh={refresh}
             onOpen={openSwing} onEditSession={editSession}
           />
         )}

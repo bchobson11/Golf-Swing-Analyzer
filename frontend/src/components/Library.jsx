@@ -2,9 +2,11 @@ import { useEffect, useRef, useState } from "react";
 import { GENERIC_ORDER, clubLabel } from "../clubs.js";
 import { filterSessions } from "../libraryOrder.js";
 import { BADGE_DEFS, DEFAULT_BADGES } from "../badges.js";
+import { updateSwingMeta } from "../api.js";
+import Favorite from "./Favorite.jsx";
 
 // Presentational: filtering/grouping driven by props from App + Sidebar.
-export default function Library({ data, view, tagFilter, clubFilter, resultFilters = {}, onOpen, onEditSession }) {
+export default function Library({ data, view, tagFilter, clubFilter, resultFilters = {}, refresh, onOpen, onEditSession }) {
   const sessions = filterSessions(data, { tag: tagFilter, club: clubFilter, results: resultFilters });
 
   // Which badges to show on cards (persisted).
@@ -21,6 +23,10 @@ export default function Library({ data, view, tagFilter, clubFilter, resultFilte
     return () => document.removeEventListener("mousedown", onDoc);
   }, [badgeMenu]);
   const toggleBadge = (key) => setBadges((b) => ({ ...b, [key]: !b[key] }));
+
+  const onFavorite = async (swing, next) => {
+    try { await updateSwingMeta(swing.id, { favorite: next }); refresh?.(); } catch { /* ignore */ }
+  };
 
   const flatSwings = sessions.flatMap((s) => s.swings.map((sw) => ({ ...sw, session: s })));
 
@@ -76,7 +82,7 @@ export default function Library({ data, view, tagFilter, clubFilter, resultFilte
       ) : view === "flat" ? (
         <div className="clip-grid">
           {flatSwings.map((sw) => (
-            <SwingCard key={sw.id} swing={sw} session={sw.session} subtitle={sw.session.name} badges={badges} onOpen={onOpen} />
+            <SwingCard key={sw.id} swing={sw} session={sw.session} subtitle={sw.session.name} badges={badges} onFavorite={onFavorite} onOpen={onOpen} />
           ))}
         </div>
       ) : view === "club" ? (
@@ -89,7 +95,7 @@ export default function Library({ data, view, tagFilter, clubFilter, resultFilte
             </div>
             <div className="clip-grid">
               {group.swings.map((sw) => (
-                <SwingCard key={sw.id} swing={sw} session={sw.session} subtitle={sw.session.name} badges={badges} onOpen={onOpen} />
+                <SwingCard key={sw.id} swing={sw} session={sw.session} subtitle={sw.session.name} badges={badges} onFavorite={onFavorite} onOpen={onOpen} />
               ))}
             </div>
           </section>
@@ -109,7 +115,7 @@ export default function Library({ data, view, tagFilter, clubFilter, resultFilte
             </div>
             <div className="clip-grid">
               {s.swings.map((sw) => (
-                <SwingCard key={sw.id} swing={sw} session={s} badges={badges} onOpen={onOpen} />
+                <SwingCard key={sw.id} swing={sw} session={s} badges={badges} onFavorite={onFavorite} onOpen={onOpen} />
               ))}
             </div>
           </section>
@@ -138,14 +144,16 @@ function cardBadges(swing, badges) {
   return out;
 }
 
-function SwingCard({ swing, session, subtitle, badges = {}, onOpen }) {
+function SwingCard({ swing, session, subtitle, badges = {}, onFavorite, onOpen }) {
   const title = swing.name?.trim() || `Swing ${swing.index + 1}`;
   const vidRef = useRef(null);
   const items = cardBadges(swing, badges);
+  const [fav, setFav] = useState(!!swing.favorite);
   return (
     <div className="clip-card clickable" onClick={() => onOpen(swing, session)}>
       <div className="clip-head">
-        <h3>{title}</h3>
+        <Favorite favorite={fav} onToggle={() => { const n = !fav; setFav(n); onFavorite?.(swing, n); }} />
+        <h3 className="card-title">{title}</h3>
         {subtitle && <span className="muted small">{subtitle}</span>}
       </div>
       <div className="clip-thumb">

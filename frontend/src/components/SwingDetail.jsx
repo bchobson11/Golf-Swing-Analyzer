@@ -5,6 +5,7 @@ import { clubLabel } from "../clubs.js";
 import { RESULT_FIELDS, RESULT_GROUPS } from "../results.js";
 import ClubPicker from "./ClubPicker.jsx";
 import TagPicker from "./TagPicker.jsx";
+import Favorite from "./Favorite.jsx";
 import Icon from "./Icon.jsx";
 
 const COLORS = ["#3b82f6", "#ef4444", "#facc15", "#22c55e", "#ffffff", "#000000"];
@@ -76,6 +77,7 @@ export default function SwingDetail({ swing, session, allTags = [], onClose, onC
   const [notes, setNotes] = useState(swing?.notes || "");
   const [name, setName] = useState(swing?.name || "");
   const [editingName, setEditingName] = useState(false);
+  const [fav, setFav] = useState(!!swing?.favorite);
   const [results, setResults] = useState(
     Object.fromEntries(RESULT_FIELDS.map((f) => [f.key, swing?.[f.key] || ""]))
   );
@@ -350,6 +352,10 @@ export default function SwingDetail({ swing, session, allTags = [], onClose, onC
     setEditingName(false);
     try { await updateSwingMeta(swing.id, { name: name.trim() || null }); onChanged?.(); } catch { /* ignore */ }
   };
+  const toggleFav = async () => {
+    const n = !fav; setFav(n);
+    try { await updateSwingMeta(swing.id, { favorite: n }); onChanged?.(); } catch { /* ignore */ }
+  };
 
   const displayName = name.trim() || `Swing ${swing.index + 1}`;
   const exportName = (displayName.replace(/[\\/:*?"<>|]+/g, "").trim() || "swing");
@@ -368,26 +374,29 @@ export default function SwingDetail({ swing, session, allTags = [], onClose, onC
       <div className="detail-head centered">
         <button className="back" onClick={onClose}>← Library</button>
         <div className="head-center">
-          {editingName ? (
-            <input
-              className="name-edit"
-              value={name}
-              autoFocus
-              placeholder={`Swing ${swing.index + 1}`}
-              onChange={(e) => setName(e.target.value)}
-              onBlur={saveName}
-              onKeyDown={(e) => {
-                if (e.key === "Enter") e.currentTarget.blur();
-                if (e.key === "Escape") { setName(swing?.name || ""); setEditingName(false); }
-              }}
-            />
-          ) : (
-            <h1 className="swing-title">
-              {displayName}
-              <button className="icon-btn name-pencil" data-tip="Rename" aria-label="Rename swing"
-                onClick={() => setEditingName(true)}><Icon name="edit" /></button>
-            </h1>
-          )}
+          <div className="title-row">
+            <Favorite favorite={fav} onToggle={toggleFav} />
+            {editingName ? (
+              <input
+                className="name-edit"
+                value={name}
+                autoFocus
+                placeholder={`Swing ${swing.index + 1}`}
+                onChange={(e) => setName(e.target.value)}
+                onBlur={saveName}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") e.currentTarget.blur();
+                  if (e.key === "Escape") { setName(swing?.name || ""); setEditingName(false); }
+                }}
+              />
+            ) : (
+              <h1 className="swing-title">
+                {displayName}
+                <button className="icon-btn name-pencil" data-tip="Rename" aria-label="Rename swing"
+                  onClick={() => setEditingName(true)}><Icon name="edit" /></button>
+              </h1>
+            )}
+          </div>
           <div className="chips">
             <span className="chip">{session?.name}</span>
             {session?.recorded_date && <span className="chip">{session.recorded_date}</span>}
