@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { getSwingPose, updateSwingClub, deleteSwing, updateSwingMeta } from "../api.js";
 import { frameStepKeyDown } from "../frameStep.js";
 import { clubLabel } from "../clubs.js";
+import { RESULT_FIELDS } from "../results.js";
 import ClubPicker from "./ClubPicker.jsx";
 import Icon from "./Icon.jsx";
 
@@ -73,6 +74,9 @@ export default function SwingDetail({ swing, session, onClose, onChanged,
   const [tags, setTags] = useState(swing?.tags || []);
   const [newTag, setNewTag] = useState("");
   const [notes, setNotes] = useState(swing?.notes || "");
+  const [results, setResults] = useState({
+    shape: swing?.shape || "", contact: swing?.contact || "", compression: swing?.compression || "",
+  });
 
   // --- keep canvases matched to the rendered video box
   const syncCanvas = useCallback(() => {
@@ -342,6 +346,10 @@ export default function SwingDetail({ swing, session, onClose, onChanged,
   const saveNotes = async () => {
     try { await updateSwingMeta(swing.id, { notes }); onChanged?.(); } catch { /* ignore */ }
   };
+  const changeResult = async (field, value) => {
+    setResults((r) => ({ ...r, [field]: value }));
+    try { await updateSwingMeta(swing.id, { [field]: value || null }); onChanged?.(); } catch { /* ignore */ }
+  };
   const removeSwing = async () => {
     if (!confirm("Delete this swing?")) return;
     await deleteSwing(swing.id);
@@ -490,6 +498,21 @@ export default function SwingDetail({ swing, session, onClose, onChanged,
                 onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); addTag(); } }}
               />
               <button className="tiny" onClick={addTag} disabled={!newTag.trim()}>Add</button>
+            </div>
+          </div>
+
+          <div className="info-results">
+            <span className="k">Results</span>
+            <div className="results-grid">
+              {RESULT_FIELDS.map((f) => (
+                <label key={f.key} className="result-field">
+                  <span className="rk">{f.label}</span>
+                  <select value={results[f.key] || ""} onChange={(e) => changeResult(f.key, e.target.value)}>
+                    <option value="">—</option>
+                    {f.options.map((o) => <option key={o} value={o}>{o}</option>)}
+                  </select>
+                </label>
+              ))}
             </div>
           </div>
 

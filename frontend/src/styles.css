@@ -394,6 +394,16 @@ input:focus, select:focus, video:focus, button:focus-visible {
 .info-item .v { font-size: 14px; }
 .info-item .club-picker { width: 100%; }
 
+.info-results { display: flex; flex-direction: column; gap: 8px; padding-top: 14px; margin-top: 14px; border-top: 1px solid var(--border); }
+.info-results > .k { font-size: 11px; text-transform: uppercase; letter-spacing: 0.05em; color: var(--muted-2); }
+.results-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 12px; }
+.result-field { display: flex; flex-direction: column; gap: 5px; }
+.result-field .rk { font-size: 12px; color: var(--muted); }
+.result-field select {
+  background: var(--surface-2); border: 1px solid var(--border); color: var(--text);
+  border-radius: var(--radius-sm); padding: 8px 10px; font-size: 13px;
+}
+
 .info-notes { display: flex; flex-direction: column; gap: 8px; padding-top: 14px; margin-top: 14px; border-top: 1px solid var(--border); }
 .info-notes > .k { font-size: 11px; text-transform: uppercase; letter-spacing: 0.05em; color: var(--muted-2); }
 .notes-input {

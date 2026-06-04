@@ -52,6 +52,9 @@ def init_db() -> None:
                 club_generic  TEXT,
                 tags          TEXT NOT NULL DEFAULT '[]',
                 notes         TEXT NOT NULL DEFAULT '',
+                shape         TEXT,
+                contact       TEXT,
+                compression   TEXT,
                 created_at    REAL NOT NULL
             );
             CREATE INDEX IF NOT EXISTS ix_swings_session ON swings(session_id);
@@ -64,6 +67,9 @@ def init_db() -> None:
             conn.execute("ALTER TABLE swings ADD COLUMN club_generic TEXT")
         if "notes" not in cols:
             conn.execute("ALTER TABLE swings ADD COLUMN notes TEXT NOT NULL DEFAULT ''")
+        for col in ("shape", "contact", "compression"):
+            if col not in cols:
+                conn.execute(f"ALTER TABLE swings ADD COLUMN {col} TEXT")
         # Tags moved from sessions to swings: add the column and, the first time,
         # seed each swing with its session's tags so existing data is preserved.
         if "tags" not in cols:
@@ -112,14 +118,19 @@ def update_swing_club(swing_id: str, club_specific: str | None,
     return cur.rowcount > 0
 
 
-def update_swing_meta(swing_id: str, tags: list[str] | None = None,
-                      notes: str | None = None) -> bool:
-    """Update a swing's tags and/or notes (only the provided fields)."""
+_SWING_META_COLS = {"tags", "notes", "shape", "contact", "compression"}
+
+
+def update_swing_meta(swing_id: str, fields: dict) -> bool:
+    """Update the given swing columns. `fields` keys must be in _SWING_META_COLS;
+    a value of None clears that column (e.g. unset a result). tags is stored as
+    JSON."""
     sets, vals = [], []
-    if tags is not None:
-        sets.append("tags = ?"); vals.append(json.dumps(tags))
-    if notes is not None:
-        sets.append("notes = ?"); vals.append(notes)
+    for col, v in fields.items():
+        if col not in _SWING_META_COLS:
+            continue
+        sets.append(f"{col} = ?")
+        vals.append(json.dumps(v or []) if col == "tags" else v)
     if not sets:
         return True
     vals.append(swing_id)
@@ -170,6 +181,9 @@ def _swing_row(r: sqlite3.Row) -> dict:
         "club_generic": r["club_generic"],
         "tags": json.loads(r["tags"]),
         "notes": r["notes"],
+        "shape": r["shape"],
+        "contact": r["contact"],
+        "compression": r["compression"],
         "url": f"/api/clips/{r['id']}",
     }
 

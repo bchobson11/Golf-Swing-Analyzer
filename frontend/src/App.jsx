@@ -21,6 +21,8 @@ export default function App() {
   const [view, setView] = useState("flat");
   const [tagFilter, setTagFilter] = useState(null);
   const [clubFilter, setClubFilter] = useState(null);
+  const [resultFilters, setResultFilters] = useState({ shape: null, contact: null, compression: null });
+  const setResultFilter = (field, val) => setResultFilters((f) => ({ ...f, [field]: val }));
   const [detail, setDetail] = useState(null); // { swing, session }
   const [editing, setEditing] = useState(null); // session being edited
 
@@ -48,6 +50,7 @@ export default function App() {
         view={view} setView={setView}
         tagFilter={tagFilter} setTagFilter={setTagFilter}
         clubFilter={clubFilter} setClubFilter={setClubFilter}
+        resultFilters={resultFilters} setResultFilter={setResultFilter}
         onUpload={() => setStage("upload")}
         onHome={goLibrary}
         goLibrary={goLibrary}
@@ -57,13 +60,14 @@ export default function App() {
         {stage === "library" && (
           <Library
             data={data} view={view} tagFilter={tagFilter} clubFilter={clubFilter}
+            resultFilters={resultFilters}
             onOpen={openSwing} onEditSession={editSession}
           />
         )}
 
         {stage === "detail" && detail && (() => {
           // Prev/next traverse the same filtered/ordered list as the library.
-          const nav = orderedSwings(data, view, tagFilter, clubFilter);
+          const nav = orderedSwings(data, view, { tag: tagFilter, club: clubFilter, results: resultFilters });
           const idx = nav.findIndex((x) => x.swing.id === detail.swing.id);
           const go = (delta) => {
             const n = nav[idx + delta];

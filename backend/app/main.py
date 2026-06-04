@@ -56,6 +56,9 @@ class ClubUpdate(BaseModel):
 class SwingMeta(BaseModel):
     tags: list[str] | None = None
     notes: str | None = None
+    shape: str | None = None
+    contact: str | None = None
+    compression: str | None = None
 
 
 class SessionUpdate(BaseModel):
@@ -212,8 +215,11 @@ async def set_swing_club(swing_id: str, body: ClubUpdate):
 
 @app.patch("/api/swings/{swing_id}")
 async def set_swing_meta(swing_id: str, body: SwingMeta):
-    tags = [t.strip() for t in body.tags if t.strip()] if body.tags is not None else None
-    if not db.update_swing_meta(swing_id, tags=tags, notes=body.notes):
+    # Only update fields the client actually sent (so null can clear a value).
+    fields = {f: getattr(body, f) for f in body.model_fields_set}
+    if "tags" in fields and fields["tags"] is not None:
+        fields["tags"] = [t.strip() for t in fields["tags"] if t.strip()]
+    if not db.update_swing_meta(swing_id, fields):
         raise HTTPException(status_code=404, detail="Swing not found")
     return {"ok": True}
 

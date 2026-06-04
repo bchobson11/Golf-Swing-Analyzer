@@ -1,4 +1,5 @@
 import { GENERIC_ORDER } from "../clubs.js";
+import { RESULT_FIELDS } from "../results.js";
 
 const VIEWS = [
   { key: "flat", label: "All swings" },
@@ -8,7 +9,8 @@ const VIEWS = [
 
 export default function Sidebar({
   data, view, setView, tagFilter, setTagFilter,
-  clubFilter, setClubFilter, onUpload, onHome, goLibrary,
+  clubFilter, setClubFilter, resultFilters = {}, setResultFilter,
+  onUpload, onHome, goLibrary,
 }) {
   const sessions = data.sessions || [];
   const swingCount = sessions.reduce((n, s) => n + s.swings.length, 0);
@@ -23,6 +25,15 @@ export default function Sidebar({
     clubCounts[g] = (clubCounts[g] || 0) + 1;
   }));
   const clubsPresent = GENERIC_ORDER.filter((g) => clubCounts[g]);
+
+  // Counts per result option (shape/contact/compression).
+  const resultCounts = {};
+  RESULT_FIELDS.forEach((f) => { resultCounts[f.key] = {}; });
+  sessions.forEach((s) => s.swings.forEach((sw) =>
+    RESULT_FIELDS.forEach((f) => {
+      const v = sw[f.key];
+      if (v) resultCounts[f.key][v] = (resultCounts[f.key][v] || 0) + 1;
+    })));
 
   const pick = (fn) => () => { fn(); goLibrary(); };
 
@@ -71,6 +82,25 @@ export default function Sidebar({
           </button>
         ))}
       </div>
+
+      {RESULT_FIELDS.map((f) => {
+        const opts = f.options.filter((o) => resultCounts[f.key][o]);
+        if (opts.length === 0) return null;
+        const active = resultFilters[f.key];
+        return (
+          <div className="side-section" key={f.key}>
+            <div className="heading">{f.label}</div>
+            <button className={`nav-item ${!active ? "active" : ""}`} onClick={pick(() => setResultFilter(f.key, null))}>
+              All
+            </button>
+            {opts.map((o) => (
+              <button key={o} className={`nav-item ${active === o ? "active" : ""}`} onClick={pick(() => setResultFilter(f.key, o))}>
+                <span>{o}</span><span className="badge">{resultCounts[f.key][o]}</span>
+              </button>
+            ))}
+          </div>
+        );
+      })}
     </aside>
   );
 }
