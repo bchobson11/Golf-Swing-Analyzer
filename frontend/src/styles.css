@@ -125,6 +125,26 @@ input:focus, select:focus, video:focus, button:focus-visible {
   padding: 1px 7px; border-radius: 999px; font-weight: 600;
 }
 .nav-item.active .badge { background: var(--accent); color: #fff; }
+
+/* Collapsible filter categories */
+.filters-heading { display: flex; align-items: center; justify-content: space-between; }
+.clear-filters { padding: 0 2px; font-size: 11px; }
+.filter-cat { display: flex; flex-direction: column; }
+.filter-head {
+  display: flex; align-items: center; gap: 6px; width: 100%; text-align: left;
+  background: none; border: none; color: var(--muted); padding: 7px 8px;
+  border-radius: var(--radius-sm);
+}
+.filter-head:hover { background: var(--surface-2); color: var(--text); }
+.filter-head .caret { color: var(--muted-2); font-size: 10px; width: 10px; }
+.filter-head .filter-label { flex: 1; }
+.filter-head.has-active .filter-label { color: var(--text); }
+.filter-active {
+  font-size: 12px; color: var(--accent); background: var(--accent-soft);
+  border: 1px solid var(--accent); border-radius: 999px; padding: 1px 8px;
+  max-width: 110px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.filter-opts { display: flex; flex-direction: column; gap: 2px; padding: 2px 0 6px 14px; }
 .sidebar .upload-btn { width: 100%; justify-content: center; }
 
 /* ---------------------------------------------------------------- content */
