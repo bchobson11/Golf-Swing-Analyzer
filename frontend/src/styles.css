@@ -219,9 +219,13 @@ input:focus, select:focus, video:focus, button:focus-visible {
 .clip-card.clickable:hover { border-color: var(--accent); transform: translateY(-1px); }
 .clip-head { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 8px; gap: 6px; }
 .clip-card h3 { margin: 0; font-size: 14px; display: flex; align-items: center; gap: 7px; }
-.clip-player { max-height: 320px; object-fit: contain; width: 100%; }
-.clip-thumb { position: relative; }
-.clip-thumb .clip-player { display: block; background: #000; border-radius: var(--radius-sm); }
+.clip-thumb {
+  position: relative; aspect-ratio: 3 / 5; overflow: hidden;
+  border-radius: var(--radius-sm); background: #000;
+}
+.clip-thumb .clip-player {
+  display: block; width: 100%; height: 100%; object-fit: cover;
+}
 .play-badge {
   position: absolute; left: 8px; bottom: 8px; padding: 3px 9px;
   font-size: 12px; font-weight: 600; color: #fff;
