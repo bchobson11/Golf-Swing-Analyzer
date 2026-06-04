@@ -1,17 +1,16 @@
 // Shared filtering/ordering for the library so the detail view's prev/next
 // traverses swings in exactly the order they'd appear in the library.
 import { GENERIC_ORDER } from "./clubs.js";
+import { RESULT_FIELDS } from "./results.js";
 
 // Sessions with their swings filtered by the active filters.
-// filters = { tag, club, results: { shape, contact, compression } }
+// filters = { tag, club, results: { <field>: value, ... } }
 export function filterSessions(data, filters = {}) {
   const { tag, club, results = {} } = filters;
   const matches = (sw) =>
     (!club || (sw.club_generic || "Unassigned") === club) &&
     (!tag || (sw.tags || []).includes(tag)) &&
-    (!results.shape || sw.shape === results.shape) &&
-    (!results.contact || sw.contact === results.contact) &&
-    (!results.compression || sw.compression === results.compression);
+    RESULT_FIELDS.every((f) => !results[f.key] || sw[f.key] === results[f.key]);
   return (data.sessions || [])
     .map((s) => ({
       ...s,

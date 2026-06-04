@@ -7,6 +7,7 @@ import SwingDetail from "./components/SwingDetail.jsx";
 import EditSession from "./components/EditSession.jsx";
 import { getLibrary } from "./api.js";
 import { orderedSwings } from "./libraryOrder.js";
+import { RESULT_FIELDS } from "./results.js";
 
 // Stages: "library" (home) <-> "upload" -> "review" -> "library"
 export default function App() {
@@ -21,7 +22,9 @@ export default function App() {
   const [view, setView] = useState("flat");
   const [tagFilter, setTagFilter] = useState(null);
   const [clubFilter, setClubFilter] = useState(null);
-  const [resultFilters, setResultFilters] = useState({ shape: null, contact: null, compression: null });
+  const [resultFilters, setResultFilters] = useState(
+    Object.fromEntries(RESULT_FIELDS.map((f) => [f.key, null]))
+  );
   const setResultFilter = (field, val) => setResultFilters((f) => ({ ...f, [field]: val }));
   const [detail, setDetail] = useState(null); // { swing, session }
   const [editing, setEditing] = useState(null); // session being edited

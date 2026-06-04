@@ -52,6 +52,7 @@ def init_db() -> None:
                 club_generic  TEXT,
                 tags          TEXT NOT NULL DEFAULT '[]',
                 notes         TEXT NOT NULL DEFAULT '',
+                direction     TEXT,
                 shape         TEXT,
                 contact       TEXT,
                 compression   TEXT,
@@ -67,7 +68,7 @@ def init_db() -> None:
             conn.execute("ALTER TABLE swings ADD COLUMN club_generic TEXT")
         if "notes" not in cols:
             conn.execute("ALTER TABLE swings ADD COLUMN notes TEXT NOT NULL DEFAULT ''")
-        for col in ("shape", "contact", "compression"):
+        for col in ("shape", "contact", "compression", "direction"):
             if col not in cols:
                 conn.execute(f"ALTER TABLE swings ADD COLUMN {col} TEXT")
         # Tags moved from sessions to swings: add the column and, the first time,
@@ -118,7 +119,7 @@ def update_swing_club(swing_id: str, club_specific: str | None,
     return cur.rowcount > 0
 
 
-_SWING_META_COLS = {"tags", "notes", "shape", "contact", "compression"}
+_SWING_META_COLS = {"tags", "notes", "direction", "shape", "contact", "compression"}
 
 
 def update_swing_meta(swing_id: str, fields: dict) -> bool:
@@ -181,6 +182,7 @@ def _swing_row(r: sqlite3.Row) -> dict:
         "club_generic": r["club_generic"],
         "tags": json.loads(r["tags"]),
         "notes": r["notes"],
+        "direction": r["direction"],
         "shape": r["shape"],
         "contact": r["contact"],
         "compression": r["compression"],

@@ -74,9 +74,9 @@ export default function SwingDetail({ swing, session, onClose, onChanged,
   const [tags, setTags] = useState(swing?.tags || []);
   const [newTag, setNewTag] = useState("");
   const [notes, setNotes] = useState(swing?.notes || "");
-  const [results, setResults] = useState({
-    shape: swing?.shape || "", contact: swing?.contact || "", compression: swing?.compression || "",
-  });
+  const [results, setResults] = useState(
+    Object.fromEntries(RESULT_FIELDS.map((f) => [f.key, swing?.[f.key] || ""]))
+  );
 
   // --- keep canvases matched to the rendered video box
   const syncCanvas = useCallback(() => {

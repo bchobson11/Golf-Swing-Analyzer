@@ -56,6 +56,7 @@ class ClubUpdate(BaseModel):
 class SwingMeta(BaseModel):
     tags: list[str] | None = None
     notes: str | None = None
+    direction: str | None = None
     shape: str | None = None
     contact: str | None = None
     compression: str | None = None
