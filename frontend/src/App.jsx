@@ -5,6 +5,7 @@ import ReviewTimeline from "./components/ReviewTimeline.jsx";
 import Library from "./components/Library.jsx";
 import SwingDetail from "./components/SwingDetail.jsx";
 import EditSession from "./components/EditSession.jsx";
+import Profile from "./components/Profile.jsx";
 import { getLibrary } from "./api.js";
 import { orderedSwings } from "./libraryOrder.js";
 import { RESULT_FIELDS } from "./results.js";
@@ -58,6 +59,7 @@ export default function App() {
         onUpload={() => setStage("upload")}
         onHome={goLibrary}
         goLibrary={goLibrary}
+        onProfile={() => setStage("profile")}
       />
 
       <main className="content">
@@ -98,6 +100,8 @@ export default function App() {
         {stage === "editSession" && editing && (
           <EditSession session={editing} allTags={data.tags || []} onClose={goLibrary} onChanged={refresh} />
         )}
+
+        {stage === "profile" && <Profile onClose={goLibrary} />}
 
         {stage === "upload" && (
           <>

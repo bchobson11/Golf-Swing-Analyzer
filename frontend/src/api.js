@@ -1,5 +1,36 @@
 // Centralized API calls to the backend.
 
+// --- auth ---
+export async function getMe() {
+  const res = await fetch("/api/auth/me");
+  if (!res.ok) throw new Error("not authenticated");
+  return res.json();
+}
+export async function googleLogin(credential) {
+  const res = await fetch("/api/auth/google", {
+    method: "POST", headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ credential }),
+  });
+  if (!res.ok) throw new Error(await res.text());
+  return res.json();
+}
+export async function devLogin() {
+  const res = await fetch("/api/auth/dev-login", { method: "POST" });
+  if (!res.ok) throw new Error("Dev login unavailable");
+  return res.json();
+}
+export async function logout() {
+  await fetch("/api/auth/logout", { method: "POST" });
+}
+export async function updateMe(name) {
+  const res = await fetch("/api/auth/me", {
+    method: "PATCH", headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ name }),
+  });
+  if (!res.ok) throw new Error("Failed to update profile");
+  return res.json();
+}
+
 // Upload with progress via XHR (fetch lacks upload progress events).
 export function uploadVideo(file, onProgress) {
   return new Promise((resolve, reject) => {
@@ -42,8 +73,9 @@ export async function saveSwings(videoId, meta, segments) {
   return res.json();
 }
 
-export async function getLibrary(tag) {
-  const res = await fetch(`/api/library${tag ? `?tag=${encodeURIComponent(tag)}` : ""}`);
+export async function getLibrary() {
+  const res = await fetch("/api/library");
+  if (res.status === 401) { window.dispatchEvent(new Event("auth:401")); throw new Error("unauthorized"); }
   if (!res.ok) throw new Error("Failed to load library");
   return res.json();
 }

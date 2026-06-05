@@ -25,6 +25,7 @@ class Video:
     id: str
     path: Path
     filename: str
+    user_id: int = 0
     duration: float = 0.0
     fps: float = 0.0
     width: int = 0

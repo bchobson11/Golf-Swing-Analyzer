@@ -34,18 +34,38 @@ curl -sSL -o backend/app/models/pose_landmarker_lite.task \
 ```bash
 cd backend
 python3 -m venv .venv && .venv/bin/pip install -r requirements.txt   # first time
-.venv/bin/uvicorn app.main:app --reload
+GOOGLE_CLIENT_ID=<your-client-id> SESSION_SECRET=<random-string> \
+  .venv/bin/uvicorn app.main:app --reload
 ```
 
 **Frontend** (port 5173):
 ```bash
 cd frontend
 npm install        # first time
+cp .env.example .env   # then set VITE_GOOGLE_CLIENT_ID
 npm run dev
 ```
 
-Open http://localhost:5173 and upload a video. Start with the small
+Open http://localhost:5173, sign in, and upload a video. Start with the small
 `Golf-Swing-Vids/rs-3-testswing.mov` (13 MB) for a quick test.
+
+## Sign-in (Google)
+
+The app is multi-user: each user's swings/sessions/tags are private. Sign-in
+uses **Sign in with Google**.
+
+1. In Google Cloud Console, configure the OAuth consent screen and create an
+   **OAuth 2.0 Client ID → Web application**. Add Authorized JavaScript origin
+   `http://localhost:5173` (and your deployed origin later).
+2. Set the same client ID in **both** `frontend/.env` (`VITE_GOOGLE_CLIENT_ID`)
+   and the backend env (`GOOGLE_CLIENT_ID`). Set a `SESSION_SECRET` for the
+   signed session cookie. For production set `COOKIE_SECURE=1` (HTTPS) and
+   `FRONTEND_ORIGIN`.
+3. The **first** Google account to sign in adopts any pre-auth library data.
+
+**Local testing without Google:** run the backend with `AUTH_DEV_LOGIN=1` to
+expose a "Dev sign in" button (a throwaway account; it never claims pre-auth
+data). Disable it in production.
 
 ## Tuning detection
 Detection parameters live in one `CONFIG` block at the top of

@@ -2,6 +2,7 @@ import { useState } from "react";
 import { GENERIC_ORDER } from "../clubs.js";
 import { RESULT_FIELDS } from "../results.js";
 import { createTag, renameTag, deleteTag } from "../api.js";
+import { useAuth } from "../auth.jsx";
 
 const VIEWS = [
   { key: "flat", label: "All swings" },
@@ -12,8 +13,9 @@ const VIEWS = [
 export default function Sidebar({
   data, view, setView, tagFilter, setTagFilter,
   clubFilter, setClubFilter, resultFilters = {}, setResultFilter,
-  refresh, onUpload, onHome, goLibrary,
+  refresh, onUpload, onHome, goLibrary, onProfile,
 }) {
+  const { user } = useAuth();
   const sessions = data.sessions || [];
   const swingCount = sessions.reduce((n, s) => n + s.swings.length, 0);
   const [open, setOpen] = useState({});
@@ -110,6 +112,16 @@ export default function Sidebar({
             onChoose={(v) => { cat.set(v); collapse(cat.key); goLibrary(); }} />
         ))}
       </div>
+
+      {user && (
+        <button className="sidebar-profile" onClick={onProfile} title="Profile & settings">
+          {user.picture
+            ? <img className="avatar sm" src={user.picture} referrerPolicy="no-referrer" alt="" />
+            : <span className="avatar sm avatar-fallback">{(user.name || "?").trim()[0]?.toUpperCase()}</span>}
+          <span className="sp-name">{user.name}</span>
+          <span className="sp-gear">⚙</span>
+        </button>
+      )}
     </aside>
   );
 }

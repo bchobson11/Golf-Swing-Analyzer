@@ -5,3 +5,6 @@ opencv-python-headless
 numpy
 imageio-ffmpeg
 mediapipe
+google-auth
+requests
+itsdangerous

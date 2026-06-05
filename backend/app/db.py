@@ -1,8 +1,8 @@
-"""SQLite persistence for the swing library.
+"""SQLite persistence for the swing library (multi-user).
 
-A *session* is one uploaded video (with a name, recorded date, and tags); it
-owns N *swings*, each a saved clip on disk. The big source upload is deleted
-once its swings are saved, so the library holds only the small clips + metadata.
+A *session* is one uploaded video owned by a user; it owns N *swings* (saved
+clips). *Tags* are per-user. All data functions are scoped to a user_id; swing-
+level functions check ownership through the swing's session.
 """
 from __future__ import annotations
 
@@ -17,6 +17,9 @@ from .jobs import DATA_DIR
 DB_PATH = DATA_DIR / "golf.db"
 _lock = threading.Lock()
 
+# Subquery that limits to sessions owned by a user.
+_OWNED = "session_id IN (SELECT id FROM sessions WHERE user_id = ?)"
+
 
 def _connect() -> sqlite3.Connection:
     conn = sqlite3.connect(DB_PATH)
@@ -29,8 +32,17 @@ def init_db() -> None:
     with _connect() as conn:
         conn.executescript(
             """
+            CREATE TABLE IF NOT EXISTS users (
+                id         INTEGER PRIMARY KEY AUTOINCREMENT,
+                google_sub TEXT UNIQUE,
+                email      TEXT,
+                name       TEXT,
+                picture    TEXT,
+                created_at REAL NOT NULL
+            );
             CREATE TABLE IF NOT EXISTS sessions (
                 id            TEXT PRIMARY KEY,
+                user_id       INTEGER,
                 name          TEXT NOT NULL,
                 recorded_date TEXT,
                 tags          TEXT NOT NULL DEFAULT '[]',
@@ -62,46 +74,113 @@ def init_db() -> None:
             );
             CREATE INDEX IF NOT EXISTS ix_swings_session ON swings(session_id);
             CREATE TABLE IF NOT EXISTS tags (
-                id   INTEGER PRIMARY KEY AUTOINCREMENT,
-                name TEXT NOT NULL UNIQUE
+                id      INTEGER PRIMARY KEY AUTOINCREMENT,
+                user_id INTEGER,
+                name    TEXT NOT NULL,
+                UNIQUE(user_id, name)
             );
             """
         )
-        # Seed the canonical tag list from any names already on swings.
-        conn.execute(
-            "INSERT OR IGNORE INTO tags(name) "
-            "SELECT DISTINCT value FROM swings, json_each(swings.tags)"
-        )
+        # --- swing column migrations (older DBs) ---
         cols = {r["name"] for r in conn.execute("PRAGMA table_info(swings)")}
-        if "club_specific" not in cols:
-            conn.execute("ALTER TABLE swings ADD COLUMN club_specific TEXT")
-        if "club_generic" not in cols:
-            conn.execute("ALTER TABLE swings ADD COLUMN club_generic TEXT")
-        if "notes" not in cols:
-            conn.execute("ALTER TABLE swings ADD COLUMN notes TEXT NOT NULL DEFAULT ''")
-        for col in ("shape", "contact", "compression", "direction", "name"):
+        for col in ("club_specific", "club_generic", "shape", "contact",
+                    "compression", "direction", "name"):
             if col not in cols:
                 conn.execute(f"ALTER TABLE swings ADD COLUMN {col} TEXT")
+        if "notes" not in cols:
+            conn.execute("ALTER TABLE swings ADD COLUMN notes TEXT NOT NULL DEFAULT ''")
         if "favorite" not in cols:
             conn.execute("ALTER TABLE swings ADD COLUMN favorite INTEGER NOT NULL DEFAULT 0")
-        # Tags moved from sessions to swings: add the column and, the first time,
-        # seed each swing with its session's tags so existing data is preserved.
         if "tags" not in cols:
             conn.execute("ALTER TABLE swings ADD COLUMN tags TEXT NOT NULL DEFAULT '[]'")
             conn.execute(
                 "UPDATE swings SET tags = COALESCE("
                 "(SELECT tags FROM sessions WHERE sessions.id = swings.session_id), '[]')"
             )
+        # --- multi-user migrations ---
+        scols = {r["name"] for r in conn.execute("PRAGMA table_info(sessions)")}
+        if "user_id" not in scols:
+            conn.execute("ALTER TABLE sessions ADD COLUMN user_id INTEGER")
+        tcols = {r["name"] for r in conn.execute("PRAGMA table_info(tags)")}
+        if "user_id" not in tcols:
+            # Rebuild the global tags table into a per-user one (names kept,
+            # owner NULL until claimed on first login).
+            conn.executescript(
+                """
+                CREATE TABLE tags_new (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    user_id INTEGER, name TEXT NOT NULL, UNIQUE(user_id, name));
+                INSERT INTO tags_new(id, user_id, name) SELECT id, NULL, name FROM tags;
+                DROP TABLE tags;
+                ALTER TABLE tags_new RENAME TO tags;
+                """
+            )
+            # Safety: ensure every swing tag name exists as a tag row.
+            conn.execute(
+                "INSERT INTO tags(user_id, name) SELECT NULL, v FROM "
+                "(SELECT DISTINCT value v FROM swings, json_each(swings.tags)) "
+                "WHERE v NOT IN (SELECT name FROM tags WHERE user_id IS NULL)"
+            )
 
 
-def create_session(session_id: str, name: str, recorded_date: str | None,
-                    tags: list[str], meta: dict) -> None:
+# ---------------------------------------------------------------- users
+
+def user_count() -> int:
+    with _connect() as conn:
+        return conn.execute("SELECT COUNT(*) c FROM users").fetchone()["c"]
+
+
+def _user_row(r: sqlite3.Row | None) -> dict | None:
+    if not r:
+        return None
+    return {"id": r["id"], "email": r["email"], "name": r["name"], "picture": r["picture"]}
+
+
+def get_user(user_id: int) -> dict | None:
+    with _connect() as conn:
+        return _user_row(conn.execute("SELECT * FROM users WHERE id = ?", (user_id,)).fetchone())
+
+
+def upsert_user(profile: dict) -> dict:
+    """Insert or refresh a user by google_sub. The display name is set only on
+    first creation (so a user's edited name survives later logins)."""
+    with _lock, _connect() as conn:
+        conn.execute(
+            """INSERT INTO users(google_sub, email, name, picture, created_at)
+               VALUES (?,?,?,?,?)
+               ON CONFLICT(google_sub) DO UPDATE SET
+                   email = excluded.email, picture = excluded.picture""",
+            (profile["google_sub"], profile.get("email", ""), profile.get("name", "Golfer"),
+             profile.get("picture", ""), time.time()),
+        )
+        row = conn.execute("SELECT * FROM users WHERE google_sub = ?", (profile["google_sub"],)).fetchone()
+    return _user_row(row)
+
+
+def update_user_name(user_id: int, name: str) -> bool:
+    with _lock, _connect() as conn:
+        cur = conn.execute("UPDATE users SET name = ? WHERE id = ?", (name, user_id))
+    return cur.rowcount > 0
+
+
+def claim_orphans(user_id: int) -> None:
+    """Assign all unowned (NULL user_id) data to this user. Used once for the
+    very first account so the pre-auth library isn't lost."""
+    with _lock, _connect() as conn:
+        conn.execute("UPDATE sessions SET user_id = ? WHERE user_id IS NULL", (user_id,))
+        conn.execute("UPDATE tags SET user_id = ? WHERE user_id IS NULL", (user_id,))
+
+
+# ---------------------------------------------------------------- sessions / swings
+
+def create_session(user_id: int, session_id: str, name: str, recorded_date: str | None,
+                   tags: list[str], meta: dict) -> None:
     with _lock, _connect() as conn:
         conn.execute(
             """INSERT INTO sessions
-               (id, name, recorded_date, tags, filename, duration, fps, width, height, created_at)
-               VALUES (?,?,?,?,?,?,?,?,?,?)""",
-            (session_id, name, recorded_date, json.dumps(tags), meta.get("filename"),
+               (id, user_id, name, recorded_date, tags, filename, duration, fps, width, height, created_at)
+               VALUES (?,?,?,?,?,?,?,?,?,?,?)""",
+            (session_id, user_id, name, recorded_date, json.dumps(tags), meta.get("filename"),
              meta.get("duration"), meta.get("fps"), meta.get("width"),
              meta.get("height"), time.time()),
         )
@@ -122,12 +201,12 @@ def add_swing(swing_id: str, session_id: str, idx: int, start: float,
         )
 
 
-def update_swing_club(swing_id: str, club_specific: str | None,
+def update_swing_club(user_id: int, swing_id: str, club_specific: str | None,
                       club_generic: str | None) -> bool:
     with _lock, _connect() as conn:
         cur = conn.execute(
-            "UPDATE swings SET club_specific = ?, club_generic = ? WHERE id = ?",
-            (club_specific, club_generic, swing_id),
+            f"UPDATE swings SET club_specific = ?, club_generic = ? WHERE id = ? AND {_OWNED}",
+            (club_specific, club_generic, swing_id, user_id),
         )
     return cur.rowcount > 0
 
@@ -135,10 +214,7 @@ def update_swing_club(swing_id: str, club_specific: str | None,
 _SWING_META_COLS = {"name", "favorite", "tags", "notes", "direction", "shape", "contact", "compression"}
 
 
-def update_swing_meta(swing_id: str, fields: dict) -> bool:
-    """Update the given swing columns. `fields` keys must be in _SWING_META_COLS;
-    a value of None clears that column (e.g. unset a result). tags is stored as
-    JSON."""
+def update_swing_meta(user_id: int, swing_id: str, fields: dict) -> bool:
     sets, vals = [], []
     for col, v in fields.items():
         if col not in _SWING_META_COLS:
@@ -147,31 +223,29 @@ def update_swing_meta(swing_id: str, fields: dict) -> bool:
         vals.append(json.dumps(v or []) if col == "tags" else v)
     if not sets:
         return True
-    vals.append(swing_id)
+    vals += [swing_id, user_id]
     with _lock, _connect() as conn:
-        cur = conn.execute(f"UPDATE swings SET {', '.join(sets)} WHERE id = ?", vals)
+        cur = conn.execute(f"UPDATE swings SET {', '.join(sets)} WHERE id = ? AND {_OWNED}", vals)
     return cur.rowcount > 0
 
 
-def update_session(session_id: str, name: str, recorded_date: str | None) -> bool:
+def update_session(user_id: int, session_id: str, name: str, recorded_date: str | None) -> bool:
     with _lock, _connect() as conn:
         cur = conn.execute(
-            "UPDATE sessions SET name = ?, recorded_date = ? WHERE id = ?",
-            (name, recorded_date, session_id),
+            "UPDATE sessions SET name = ?, recorded_date = ? WHERE id = ? AND user_id = ?",
+            (name, recorded_date, session_id, user_id),
         )
     return cur.rowcount > 0
 
 
-def apply_swing_tag_changes(session_id: str, add: list[str],
+def apply_swing_tag_changes(user_id: int, session_id: str, add: list[str],
                             remove: list[str]) -> bool:
-    """Add/remove tags across every swing in a session, preserving each swing's
-    other (swing-specific) tags. Used by the session-page 'retag', which only
-    touches tags common to all swings."""
     rem = set(remove)
     with _lock, _connect() as conn:
-        rows = conn.execute(
-            "SELECT id, tags FROM swings WHERE session_id = ?", (session_id,)
-        ).fetchall()
+        owner = conn.execute("SELECT user_id FROM sessions WHERE id = ?", (session_id,)).fetchone()
+        if not owner or owner["user_id"] != user_id:
+            return False
+        rows = conn.execute("SELECT id, tags FROM swings WHERE session_id = ?", (session_id,)).fetchall()
         if not rows:
             return False
         for r in rows:
@@ -179,52 +253,40 @@ def apply_swing_tag_changes(session_id: str, add: list[str],
             for t in add:
                 if t not in kept:
                     kept.append(t)
-            conn.execute("UPDATE swings SET tags = ? WHERE id = ?",
-                         (json.dumps(kept), r["id"]))
+            conn.execute("UPDATE swings SET tags = ? WHERE id = ?", (json.dumps(kept), r["id"]))
     return True
 
 
 def _swing_row(r: sqlite3.Row) -> dict:
     return {
-        "id": r["id"],
-        "session_id": r["session_id"],
-        "index": r["idx"],
-        "start": r["start"],
-        "end": r["end"],
-        "name": r["name"],
+        "id": r["id"], "session_id": r["session_id"], "index": r["idx"],
+        "start": r["start"], "end": r["end"], "name": r["name"],
         "favorite": bool(r["favorite"]),
-        "club_specific": r["club_specific"],
-        "club_generic": r["club_generic"],
-        "tags": json.loads(r["tags"]),
-        "notes": r["notes"],
-        "direction": r["direction"],
-        "shape": r["shape"],
-        "contact": r["contact"],
-        "compression": r["compression"],
+        "club_specific": r["club_specific"], "club_generic": r["club_generic"],
+        "tags": json.loads(r["tags"]), "notes": r["notes"],
+        "direction": r["direction"], "shape": r["shape"],
+        "contact": r["contact"], "compression": r["compression"],
         "url": f"/api/clips/{r['id']}",
     }
 
 
 def _session_row(r: sqlite3.Row) -> dict:
     return {
-        "id": r["id"],
-        "name": r["name"],
-        "recorded_date": r["recorded_date"],
-        "filename": r["filename"],
-        "duration": r["duration"],
-        "fps": r["fps"],
+        "id": r["id"], "name": r["name"], "recorded_date": r["recorded_date"],
+        "filename": r["filename"], "duration": r["duration"], "fps": r["fps"],
         "created_at": r["created_at"],
     }
 
 
-def list_sessions() -> list[dict]:
-    """All sessions (newest first) with their swings nested."""
+def list_sessions(user_id: int) -> list[dict]:
+    """A user's sessions (newest first) with their swings nested."""
     with _connect() as conn:
         sessions = [
-            _session_row(r)
-            for r in conn.execute("SELECT * FROM sessions ORDER BY created_at DESC")
+            _session_row(r) for r in conn.execute(
+                "SELECT * FROM sessions WHERE user_id = ? ORDER BY created_at DESC", (user_id,))
         ]
-        swings = conn.execute("SELECT * FROM swings ORDER BY idx").fetchall()
+        swings = conn.execute(
+            f"SELECT * FROM swings WHERE {_OWNED} ORDER BY idx", (user_id,)).fetchall()
     by_session: dict[str, list[dict]] = {}
     for r in swings:
         by_session.setdefault(r["session_id"], []).append(_swing_row(r))
@@ -233,78 +295,74 @@ def list_sessions() -> list[dict]:
     return sessions
 
 
-def get_clip_path(swing_id: str) -> Path | None:
+def get_clip_path(user_id: int, swing_id: str) -> Path | None:
     with _connect() as conn:
         row = conn.execute(
-            "SELECT clip_path FROM swings WHERE id = ?", (swing_id,)
-        ).fetchone()
+            f"SELECT clip_path FROM swings WHERE id = ? AND {_OWNED}", (swing_id, user_id)).fetchone()
     return Path(row["clip_path"]) if row else None
 
 
-def delete_swing(swing_id: str) -> Path | None:
-    """Remove a swing row; return its clip path so the caller can unlink it."""
+def delete_swing(user_id: int, swing_id: str) -> Path | None:
     with _lock, _connect() as conn:
         row = conn.execute(
-            "SELECT clip_path FROM swings WHERE id = ?", (swing_id,)
-        ).fetchone()
+            f"SELECT clip_path FROM swings WHERE id = ? AND {_OWNED}", (swing_id, user_id)).fetchone()
         if not row:
             return None
         conn.execute("DELETE FROM swings WHERE id = ?", (swing_id,))
     return Path(row["clip_path"])
 
 
-def delete_session(session_id: str) -> list[Path]:
-    """Remove a session and its swings; return clip paths to unlink."""
+def delete_session(user_id: int, session_id: str) -> list[Path]:
     with _lock, _connect() as conn:
-        rows = conn.execute(
-            "SELECT clip_path FROM swings WHERE session_id = ?", (session_id,)
-        ).fetchall()
+        owner = conn.execute("SELECT user_id FROM sessions WHERE id = ?", (session_id,)).fetchone()
+        if not owner or owner["user_id"] != user_id:
+            return []
+        rows = conn.execute("SELECT clip_path FROM swings WHERE session_id = ?", (session_id,)).fetchall()
         conn.execute("DELETE FROM sessions WHERE id = ?", (session_id,))  # cascades
     return [Path(r["clip_path"]) for r in rows]
 
 
-def list_tags() -> list[dict]:
-    """Canonical tag list (includes created-but-unused tags)."""
+# ---------------------------------------------------------------- tags (per-user)
+
+def list_tags(user_id: int) -> list[dict]:
     with _connect() as conn:
-        return [{"id": r["id"], "name": r["name"]}
-                for r in conn.execute("SELECT id, name FROM tags ORDER BY name COLLATE NOCASE")]
+        return [{"id": r["id"], "name": r["name"]} for r in conn.execute(
+            "SELECT id, name FROM tags WHERE user_id = ? ORDER BY name COLLATE NOCASE", (user_id,))]
 
 
-def create_tag(name: str) -> dict | None:
+def create_tag(user_id: int, name: str) -> dict | None:
     name = name.strip()
     if not name:
         return None
     with _lock, _connect() as conn:
-        conn.execute("INSERT OR IGNORE INTO tags(name) VALUES (?)", (name,))
-        row = conn.execute("SELECT id, name FROM tags WHERE name = ?", (name,)).fetchone()
+        conn.execute("INSERT OR IGNORE INTO tags(user_id, name) VALUES (?, ?)", (user_id, name))
+        row = conn.execute("SELECT id, name FROM tags WHERE user_id = ? AND name = ?",
+                           (user_id, name)).fetchone()
     return {"id": row["id"], "name": row["name"]} if row else None
 
 
-def _rewrite_swing_tags(conn, fn) -> None:
-    """Apply fn(list)->list to every swing's tag array."""
-    for r in conn.execute("SELECT id, tags FROM swings").fetchall():
+def _rewrite_swing_tags(conn, user_id: int, fn) -> None:
+    for r in conn.execute(f"SELECT id, tags FROM swings WHERE {_OWNED}", (user_id,)).fetchall():
         arr = json.loads(r["tags"])
         new = fn(list(arr))
         if new != arr:
-            conn.execute("UPDATE swings SET tags = ? WHERE id = ?",
-                         (json.dumps(new), r["id"]))
+            conn.execute("UPDATE swings SET tags = ? WHERE id = ?", (json.dumps(new), r["id"]))
 
 
-def rename_tag(tag_id: int, new_name: str) -> bool:
+def rename_tag(user_id: int, tag_id: int, new_name: str) -> bool:
     new_name = new_name.strip()
     if not new_name:
         return False
     with _lock, _connect() as conn:
-        row = conn.execute("SELECT name FROM tags WHERE id = ?", (tag_id,)).fetchone()
+        row = conn.execute("SELECT name FROM tags WHERE id = ? AND user_id = ?",
+                           (tag_id, user_id)).fetchone()
         if not row:
             return False
         old = row["name"]
         if old == new_name:
             return True
-        # If the target name already exists, merge into it (drop this row).
-        clash = conn.execute(
-            "SELECT id FROM tags WHERE name = ? AND id != ?", (new_name, tag_id)
-        ).fetchone()
+        clash = conn.execute("SELECT id FROM tags WHERE user_id = ? AND name = ? AND id != ?",
+                             (user_id, new_name, tag_id)).fetchone()
         if clash:
             conn.execute("DELETE FROM tags WHERE id = ?", (tag_id,))
         else:
@@ -314,16 +372,17 @@ def rename_tag(tag_id: int, new_name: str) -> bool:
             arr = [new_name if t == old else t for t in arr]
             seen = set()
             return [t for t in arr if not (t in seen or seen.add(t))]
-        _rewrite_swing_tags(conn, swap)
+        _rewrite_swing_tags(conn, user_id, swap)
     return True
 
 
-def delete_tag(tag_id: int) -> bool:
+def delete_tag(user_id: int, tag_id: int) -> bool:
     with _lock, _connect() as conn:
-        row = conn.execute("SELECT name FROM tags WHERE id = ?", (tag_id,)).fetchone()
+        row = conn.execute("SELECT name FROM tags WHERE id = ? AND user_id = ?",
+                           (tag_id, user_id)).fetchone()
         if not row:
             return False
         name = row["name"]
         conn.execute("DELETE FROM tags WHERE id = ?", (tag_id,))
-        _rewrite_swing_tags(conn, lambda arr: [t for t in arr if t != name])
+        _rewrite_swing_tags(conn, user_id, lambda arr: [t for t in arr if t != name])
     return True
