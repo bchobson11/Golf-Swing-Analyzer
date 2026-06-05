@@ -1,18 +1,11 @@
-// Golf-ball favorite toggle. Filled (white) when favorited, outline otherwise.
+// Star favorite toggle. Filled (gold) when favorited, outline otherwise.
 // Tooltip says what clicking will do.
-function GolfBall({ filled }) {
+function Star({ filled }) {
   return (
-    <svg width="18" height="18" viewBox="0 0 24 24" aria-hidden="true">
-      <circle cx="12" cy="12" r="8.5"
-        fill={filled ? "currentColor" : "none"}
-        stroke="currentColor" strokeWidth="2" />
-      <g fill={filled ? "rgba(0,0,0,0.28)" : "currentColor"}>
-        <circle cx="9" cy="10" r="1" />
-        <circle cx="15" cy="10" r="1" />
-        <circle cx="12" cy="13.4" r="1" />
-        <circle cx="9.4" cy="14.8" r="0.9" />
-        <circle cx="14.6" cy="14.8" r="0.9" />
-      </g>
+    <svg width="18" height="18" viewBox="0 0 24 24" aria-hidden="true"
+      fill={filled ? "currentColor" : "none"}
+      stroke="currentColor" strokeWidth="2" strokeLinejoin="round" strokeLinecap="round">
+      <path d="M12 2.6l2.82 5.72 6.31.92-4.57 4.45 1.08 6.29L12 17.98 6.36 19.98l1.08-6.29L2.87 9.24l6.31-.92z" />
     </svg>
   );
 }
@@ -26,7 +19,7 @@ export default function Favorite({ favorite, onToggle, className = "" }) {
       aria-pressed={favorite}
       onClick={(e) => { e.stopPropagation(); onToggle(); }}
     >
-      <GolfBall filled={favorite} />
+      <Star filled={favorite} />
     </button>
   );
 }

@@ -6,8 +6,9 @@ import { RESULT_FIELDS } from "./results.js";
 // Sessions with their swings filtered by the active filters.
 // filters = { tag, club, results: { <field>: value, ... } }
 export function filterSessions(data, filters = {}) {
-  const { tag, club, results = {} } = filters;
+  const { tag, club, results = {}, favorites } = filters;
   const matches = (sw) =>
+    (!favorites || sw.favorite) &&
     (!club || (sw.club_generic || "Unassigned") === club) &&
     (!tag || (sw.tags || []).includes(tag)) &&
     RESULT_FIELDS.every((f) => !results[f.key] || sw[f.key] === results[f.key]);

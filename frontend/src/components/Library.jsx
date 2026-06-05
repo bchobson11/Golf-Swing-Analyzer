@@ -7,7 +7,8 @@ import Favorite from "./Favorite.jsx";
 
 // Presentational: filtering/grouping driven by props from App + Sidebar.
 export default function Library({ data, view, tagFilter, clubFilter, resultFilters = {}, refresh, onOpen, onEditSession }) {
-  const sessions = filterSessions(data, { tag: tagFilter, club: clubFilter, results: resultFilters });
+  const favoritesView = view === "favorites";
+  const sessions = filterSessions(data, { tag: tagFilter, club: clubFilter, results: resultFilters, favorites: favoritesView });
 
   // Which badges to show on cards (persisted).
   const [badges, setBadges] = useState(() => {
@@ -36,7 +37,7 @@ export default function Library({ data, view, tagFilter, clubFilter, resultFilte
     ...Object.values(resultFilters).filter(Boolean),
   ].filter(Boolean).join(" · ");
 
-  const heading = { flat: "All swings", sessions: "By session", club: "By club" }[view];
+  const heading = { flat: "All swings", sessions: "By session", club: "By club", favorites: "Favorites" }[view];
 
   const byClub = GENERIC_ORDER
     .map((generic) => ({ generic, swings: flatSwings.filter((sw) => (sw.club_generic || "Unassigned") === generic) }))
@@ -76,10 +77,19 @@ export default function Library({ data, view, tagFilter, clubFilter, resultFilte
         </div>
       ) : flatSwings.length === 0 ? (
         <div className="empty">
-          <p className="big">No swings match this filter</p>
-          <p className="muted">Try clearing the tag or club filter.</p>
+          {favoritesView ? (
+            <>
+              <p className="big">No favorite swings yet</p>
+              <p className="muted">Tap the ★ on a swing to add it to your favorites.</p>
+            </>
+          ) : (
+            <>
+              <p className="big">No swings match this filter</p>
+              <p className="muted">Try clearing the tag or club filter.</p>
+            </>
+          )}
         </div>
-      ) : view === "flat" ? (
+      ) : view === "flat" || favoritesView ? (
         <div className="clip-grid">
           {flatSwings.map((sw) => (
             <SwingCard key={sw.id} swing={sw} session={sw.session} subtitle={sw.session.name} badges={badges} onFavorite={onFavorite} onOpen={onOpen} />

@@ -150,6 +150,7 @@ input:focus, select:focus, video:focus, button:focus-visible {
 .tag-edit-row { display: flex; align-items: center; gap: 6px; padding: 2px 4px; }
 .tag-edit-row .tag-input { flex: 1; width: auto; font-size: 13px; padding: 5px 8px; }
 .sidebar .upload-btn { width: 100%; justify-content: center; }
+.fav-star { color: #fbbf24; }
 
 /* ---------------------------------------------------------------- content */
 .content { flex: 1; min-width: 0; padding: 22px 26px; }
@@ -383,11 +384,11 @@ input:focus, select:focus, video:focus, button:focus-visible {
 .icon-btn.frame-step { font-size: 18px; line-height: 1; padding: 6px 11px; }
 .icon-btn.active { background: var(--accent); border-color: var(--accent); color: #fff; }
 
-/* Golf-ball favorite toggle */
-.favorite { padding: 4px; color: var(--muted-2); line-height: 0; }
+/* Star favorite toggle (gold fill complements the blue accent) */
+.favorite { padding: 4px; color: var(--muted); line-height: 0; }
 .favorite:hover { color: var(--text); }
-.favorite.on { color: #fff; }
-.favorite.on:hover { color: #e8edf5; }
+.favorite.on { color: #fbbf24; }
+.favorite.on:hover { color: #fcd34d; }
 .icon-btn[data-tip]::after,
 .swatch[data-tip]::after,
 .zoom-pct[data-tip]::after {

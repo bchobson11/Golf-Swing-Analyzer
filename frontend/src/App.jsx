@@ -71,7 +71,7 @@ export default function App() {
 
         {stage === "detail" && detail && (() => {
           // Prev/next traverse the same filtered/ordered list as the library.
-          const nav = orderedSwings(data, view, { tag: tagFilter, club: clubFilter, results: resultFilters });
+          const nav = orderedSwings(data, view, { tag: tagFilter, club: clubFilter, results: resultFilters, favorites: view === "favorites" });
           const idx = nav.findIndex((x) => x.swing.id === detail.swing.id);
           const go = (delta) => {
             const n = nav[idx + delta];
