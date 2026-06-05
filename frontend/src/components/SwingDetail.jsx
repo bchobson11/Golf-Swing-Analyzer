@@ -222,9 +222,12 @@ export default function SwingDetail({ swing, session, allTags = [], onClose, onC
     }
   };
   const onStageMove = (e) => {
-    if (!panRef.current) return;
-    const dx = e.clientX - panRef.current.x, dy = e.clientY - panRef.current.y;
-    setTf((t) => ({ ...t, ...clampPan(t.s, panRef.current.tx + dx, panRef.current.ty + dy) }));
+    const pan = panRef.current;
+    if (!pan) return;
+    // Capture the pan snapshot locally; the setTf updater may run after
+    // pointer-up has cleared panRef (e.g. releasing outside the frame).
+    const dx = e.clientX - pan.x, dy = e.clientY - pan.y;
+    setTf((t) => ({ ...t, ...clampPan(t.s, pan.tx + dx, pan.ty + dy) }));
   };
   const onStageUp = () => { panRef.current = null; setPanning(false); };
 
