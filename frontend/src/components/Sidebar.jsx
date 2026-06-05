@@ -16,7 +16,6 @@ export default function Sidebar({
 }) {
   const sessions = data.sessions || [];
   const swingCount = sessions.reduce((n, s) => n + s.swings.length, 0);
-  const favCount = sessions.reduce((n, s) => n + s.swings.filter((sw) => sw.favorite).length, 0);
   const [open, setOpen] = useState({});
 
   // Counts from current data.
@@ -83,8 +82,7 @@ export default function Sidebar({
           </button>
         ))}
         <button className={`nav-item ${view === "favorites" ? "active" : ""}`} onClick={() => pickView("favorites")}>
-          <span><span className="fav-star">★</span> Favorites</span>
-          {favCount > 0 && <span className="badge">{favCount}</span>}
+          Favorites
         </button>
       </div>
 
