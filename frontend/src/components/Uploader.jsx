@@ -1,6 +1,7 @@
 import { useRef, useState } from "react";
 import { uploadVideo, startAnalysis, getAnalysis } from "../api.js";
 import ClubPicker from "./ClubPicker.jsx";
+import { CAMERA_ANGLE } from "../results.js";
 
 const today = () => new Date().toISOString().slice(0, 10);
 const nameFromFile = (f) => f.name.replace(/\.[^.]+$/, "");
@@ -13,6 +14,7 @@ export default function Uploader({ onReady }) {
   const [date, setDate] = useState(today());
   const [tags, setTags] = useState("");
   const [club, setClub] = useState({ club_specific: null, club_generic: null });
+  const [cameraAngle, setCameraAngle] = useState("");
   const [uploadPct, setUploadPct] = useState(0);
   const [analyzePct, setAnalyzePct] = useState(0);
   const [error, setError] = useState(null);
@@ -40,6 +42,7 @@ export default function Uploader({ onReady }) {
         name: name.trim() || nameFromFile(file),
         recorded_date: date || null,
         tags: tags.split(",").map((t) => t.trim()).filter(Boolean),
+        camera_angle: cameraAngle || null,
       };
       onReady(video, withClub, meta);
     } catch (e) {
@@ -100,6 +103,13 @@ export default function Uploader({ onReady }) {
           <label>
             Club <span className="muted small">· default for each detected swing</span>
             <ClubPicker club={club} onChange={setClub} />
+          </label>
+          <label>
+            Camera angle <span className="muted small">· applied to each detected swing</span>
+            <select value={cameraAngle} onChange={(e) => setCameraAngle(e.target.value)}>
+              <option value="">—</option>
+              {CAMERA_ANGLE.options.map((o) => <option key={o} value={o}>{o}</option>)}
+            </select>
           </label>
         </div>
         <div className="toolbar">

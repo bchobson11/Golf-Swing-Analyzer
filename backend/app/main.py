@@ -113,6 +113,7 @@ class SaveRequest(BaseModel):
     name: str
     recorded_date: str | None = None
     tags: list[str] = []
+    camera_angle: str | None = None
     segments: list[Segment]
 
 
@@ -130,6 +131,7 @@ class SwingMeta(BaseModel):
     shape: str | None = None
     contact: str | None = None
     compression: str | None = None
+    camera_angle: str | None = None
 
 
 class SessionUpdate(BaseModel):
@@ -228,6 +230,7 @@ async def save(video_id: str, req: SaveRequest, user: dict = auth.CurrentUser):
 
     # The upload tags become each swing's default tags (tags live on swings).
     default_tags = [t.strip() for t in req.tags if t.strip()]
+    camera_angle = req.camera_angle or None
     db.create_session(
         user["id"], video_id, req.name.strip() or v.filename, req.recorded_date, default_tags,
         {"filename": v.filename, "duration": v.duration, "fps": v.fps,
@@ -243,7 +246,7 @@ async def save(video_id: str, req: SaveRequest, user: dict = auth.CurrentUser):
             raise HTTPException(status_code=500, detail=str(e))
         db.add_swing(swing_id, video_id, i, seg.start, seg.end, str(out),
                      club_specific=seg.club_specific, club_generic=seg.club_generic,
-                     tags=default_tags)
+                     tags=default_tags, camera_angle=camera_angle)
 
     # The library only needs the small clips, so drop the big source upload.
     v.path.unlink(missing_ok=True)

@@ -507,6 +507,7 @@ input:focus, select:focus, video:focus, button:focus-visible {
 .info-item .k { font-size: 11px; text-transform: uppercase; letter-spacing: 0.05em; color: var(--muted-2); }
 .info-item .v { font-size: 14px; }
 .info-item .club-picker { width: 100%; }
+.setup-grid { padding-top: 14px; margin-top: 14px; border-top: 1px solid var(--border); }
 
 .info-row { display: flex; flex-direction: column; gap: 8px; padding-top: 14px; margin-top: 14px; border-top: 1px solid var(--border); }
 .info-row > .k { font-size: 11px; text-transform: uppercase; letter-spacing: 0.05em; color: var(--muted-2); }

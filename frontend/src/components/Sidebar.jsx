@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { GENERIC_ORDER } from "../clubs.js";
-import { RESULT_FIELDS } from "../results.js";
+import { FILTER_FIELDS } from "../results.js";
 import { createTag, renameTag, deleteTag } from "../api.js";
 import { useAuth } from "../auth.jsx";
 
@@ -30,9 +30,9 @@ export default function Sidebar({
     clubCounts[g] = (clubCounts[g] || 0) + 1;
   }));
   const resultCounts = {};
-  RESULT_FIELDS.forEach((f) => { resultCounts[f.key] = {}; });
+  FILTER_FIELDS.forEach((f) => { resultCounts[f.key] = {}; });
   sessions.forEach((s) => s.swings.forEach((sw) =>
-    RESULT_FIELDS.forEach((f) => {
+    FILTER_FIELDS.forEach((f) => {
       const v = sw[f.key];
       if (v) resultCounts[f.key][v] = (resultCounts[f.key][v] || 0) + 1;
     })));
@@ -43,7 +43,7 @@ export default function Sidebar({
       key: "club", label: "Club", active: clubFilter, set: setClubFilter,
       options: GENERIC_ORDER.filter((g) => clubCounts[g]).map((g) => ({ value: g, count: clubCounts[g] })),
     },
-    ...RESULT_FIELDS.map((f) => ({
+    ...FILTER_FIELDS.map((f) => ({
       key: f.key, label: f.label, active: resultFilters[f.key], set: (v) => setResultFilter(f.key, v),
       options: f.options.filter((o) => resultCounts[f.key][o]).map((o) => ({ value: o, count: resultCounts[f.key][o] })),
     })),
@@ -52,10 +52,10 @@ export default function Sidebar({
   const tagItems = (data.tags || []).map((t) => ({ id: t.id, name: t.name, count: tagCounts[t.name] || 0 }));
 
   const activeCount = (clubFilter ? 1 : 0) + (tagFilter ? 1 : 0)
-    + RESULT_FIELDS.filter((f) => resultFilters[f.key]).length;
+    + FILTER_FIELDS.filter((f) => resultFilters[f.key]).length;
   const clearAll = () => {
     setClubFilter(null); setTagFilter(null);
-    RESULT_FIELDS.forEach((f) => setResultFilter(f.key, null));
+    FILTER_FIELDS.forEach((f) => setResultFilter(f.key, null));
     goLibrary();
   };
 

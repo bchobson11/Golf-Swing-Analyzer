@@ -2,7 +2,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { getSwingPose, updateSwingClub, deleteSwing, updateSwingMeta } from "../api.js";
 import { frameStepKeyDown } from "../frameStep.js";
 import { clubLabel } from "../clubs.js";
-import { RESULT_FIELDS, RESULT_GROUPS } from "../results.js";
+import { RESULT_GROUPS, FILTER_FIELDS, CAMERA_ANGLE } from "../results.js";
 import ClubPicker from "./ClubPicker.jsx";
 import TagPicker from "./TagPicker.jsx";
 import Favorite from "./Favorite.jsx";
@@ -79,7 +79,7 @@ export default function SwingDetail({ swing, session, allTags = [], onClose, onC
   const [editingName, setEditingName] = useState(false);
   const [fav, setFav] = useState(!!swing?.favorite);
   const [results, setResults] = useState(
-    Object.fromEntries(RESULT_FIELDS.map((f) => [f.key, swing?.[f.key] || ""]))
+    Object.fromEntries(FILTER_FIELDS.map((f) => [f.key, swing?.[f.key] || ""]))
   );
 
   // --- keep canvases matched to the rendered video box
@@ -515,9 +515,19 @@ export default function SwingDetail({ swing, session, allTags = [], onClose, onC
             <div className="info-item"><span className="k">Clip</span><span className="v">{fmt(swing.start)} → {fmt(swing.end)} ({(swing.end - swing.start).toFixed(1)}s)</span></div>
           </div>
 
-          <div className="info-row">
-            <span className="k">Club</span>
-            <ClubPicker club={club} onChange={changeClub} />
+          <div className="info-grid setup-grid">
+            <div className="info-item">
+              <span className="k">Club</span>
+              <ClubPicker club={club} onChange={changeClub} />
+            </div>
+            <div className="info-item">
+              <span className="k">Camera angle</span>
+              <select className="club-picker" value={results[CAMERA_ANGLE.key] || ""}
+                onChange={(e) => changeResult(CAMERA_ANGLE.key, e.target.value)}>
+                <option value="">—</option>
+                {CAMERA_ANGLE.options.map((o) => <option key={o} value={o}>{o}</option>)}
+              </select>
+            </div>
           </div>
 
           <div className="info-results">

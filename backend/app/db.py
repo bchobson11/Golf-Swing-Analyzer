@@ -70,6 +70,7 @@ def init_db() -> None:
                 shape         TEXT,
                 contact       TEXT,
                 compression   TEXT,
+                camera_angle  TEXT,
                 created_at    REAL NOT NULL
             );
             CREATE INDEX IF NOT EXISTS ix_swings_session ON swings(session_id);
@@ -84,7 +85,7 @@ def init_db() -> None:
         # --- swing column migrations (older DBs) ---
         cols = {r["name"] for r in conn.execute("PRAGMA table_info(swings)")}
         for col in ("club_specific", "club_generic", "shape", "contact",
-                    "compression", "direction", "name"):
+                    "compression", "direction", "name", "camera_angle"):
             if col not in cols:
                 conn.execute(f"ALTER TABLE swings ADD COLUMN {col} TEXT")
         if "notes" not in cols:
@@ -189,15 +190,15 @@ def create_session(user_id: int, session_id: str, name: str, recorded_date: str 
 def add_swing(swing_id: str, session_id: str, idx: int, start: float,
               end: float, clip_path: str, club_specific: str | None = None,
               club_generic: str | None = None, tags: list[str] | None = None,
-              notes: str = "") -> None:
+              notes: str = "", camera_angle: str | None = None) -> None:
     with _lock, _connect() as conn:
         conn.execute(
             """INSERT INTO swings
                (id, session_id, idx, start, end, clip_path, club_specific,
-                club_generic, tags, notes, created_at)
-               VALUES (?,?,?,?,?,?,?,?,?,?,?)""",
+                club_generic, tags, notes, camera_angle, created_at)
+               VALUES (?,?,?,?,?,?,?,?,?,?,?,?)""",
             (swing_id, session_id, idx, start, end, clip_path, club_specific,
-             club_generic, json.dumps(tags or []), notes, time.time()),
+             club_generic, json.dumps(tags or []), notes, camera_angle, time.time()),
         )
 
 
@@ -211,7 +212,8 @@ def update_swing_club(user_id: int, swing_id: str, club_specific: str | None,
     return cur.rowcount > 0
 
 
-_SWING_META_COLS = {"name", "favorite", "tags", "notes", "direction", "shape", "contact", "compression"}
+_SWING_META_COLS = {"name", "favorite", "tags", "notes", "direction", "shape",
+                    "contact", "compression", "camera_angle"}
 
 
 def update_swing_meta(user_id: int, swing_id: str, fields: dict) -> bool:
@@ -266,6 +268,7 @@ def _swing_row(r: sqlite3.Row) -> dict:
         "tags": json.loads(r["tags"]), "notes": r["notes"],
         "direction": r["direction"], "shape": r["shape"],
         "contact": r["contact"], "compression": r["compression"],
+        "camera_angle": r["camera_angle"],
         "url": f"/api/clips/{r['id']}",
     }
 
