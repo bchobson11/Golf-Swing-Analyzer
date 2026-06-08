@@ -8,3 +8,4 @@ mediapipe
 google-auth
 requests
 itsdangerous
+python-dotenv

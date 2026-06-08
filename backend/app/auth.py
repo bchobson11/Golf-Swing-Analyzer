@@ -9,10 +9,15 @@ from google.oauth2 import id_token
 
 from . import db
 
-GOOGLE_CLIENT_ID = os.environ.get("GOOGLE_CLIENT_ID", "")
-DEV_LOGIN = os.environ.get("AUTH_DEV_LOGIN") == "1"
-
 _google_request = google_requests.Request()
+
+
+def client_id() -> str:
+    return os.environ.get("GOOGLE_CLIENT_ID", "")
+
+
+def dev_login_enabled() -> bool:
+    return os.environ.get("AUTH_DEV_LOGIN") == "1"
 
 
 def verify_google(credential: str) -> dict:
@@ -20,10 +25,11 @@ def verify_google(credential: str) -> dict:
 
     Raises HTTPException(401) on any verification failure.
     """
-    if not GOOGLE_CLIENT_ID:
+    cid = client_id()
+    if not cid:
         raise HTTPException(status_code=500, detail="GOOGLE_CLIENT_ID not configured")
     try:
-        info = id_token.verify_oauth2_token(credential, _google_request, GOOGLE_CLIENT_ID)
+        info = id_token.verify_oauth2_token(credential, _google_request, cid)
     except Exception:
         raise HTTPException(status_code=401, detail="Invalid Google credential")
     if not info.get("sub"):

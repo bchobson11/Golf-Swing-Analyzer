@@ -12,6 +12,12 @@ import os
 import uuid
 from pathlib import Path
 
+from dotenv import load_dotenv
+
+# Load backend/.env (if present) before anything reads the environment.
+# Existing shell env vars take precedence (override=False).
+load_dotenv(Path(__file__).resolve().parent.parent / ".env")
+
 from fastapi import BackgroundTasks, Depends, FastAPI, HTTPException, Request, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from starlette.middleware.sessions import SessionMiddleware
@@ -70,7 +76,7 @@ async def auth_google(body: GoogleLogin, request: Request):
 
 @app.post("/api/auth/dev-login")
 async def auth_dev_login(request: Request):
-    if not auth.DEV_LOGIN:
+    if not auth.dev_login_enabled():
         raise HTTPException(status_code=404, detail="Not found")
     return _login(request, {"google_sub": "dev:local", "email": "dev@local",
                             "name": "Dev User", "picture": ""}, claim=False)
