@@ -11,6 +11,8 @@ frontend/node_modules/
 frontend/dist/
 frontend/.env
 frontend/.env.local
+backend/.env
+backend/.env.local
 __pycache__/
 *.pyc
 .DS_Store
